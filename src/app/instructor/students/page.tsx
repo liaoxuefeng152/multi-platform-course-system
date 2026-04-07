@@ -107,8 +107,56 @@ export default function StudentsPage() {
   };
 
   const handleExport = () => {
-    console.log('导出学员数据');
-    // TODO: 实现导出逻辑
+    // 准备 CSV 数据
+    const headers = [
+      '学员姓名',
+      '手机号',
+      '购买课程',
+      '订单数',
+      '消费金额(元)',
+      '加入时间',
+      '最后活跃',
+      '学习进度(%)',
+    ];
+
+    const rows = filteredStudents.map((student) => [
+      student.name,
+      student.phone,
+      student.courses.join('; '),
+      student.totalOrders.toString(),
+      student.totalSpent.toString(),
+      student.joinDate,
+      student.lastActive,
+      student.progress.toString(),
+    ]);
+
+    // 添加 BOM 以支持 Excel 正确显示中文
+    const BOM = '\uFEFF';
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    // 创建 Blob 对象
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // 创建下载链接
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `学员数据_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`
+    );
+    link.style.visibility = 'hidden';
+
+    // 触发下载
+    document.body.appendChild(link);
+    link.click();
+
+    // 清理
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const sendMessage = () => {
