@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Shield } from 'lucide-react';
+import { BookOpen, Shield, HelpCircle } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -82,6 +82,16 @@ export default function Home() {
             <div className="text-2xl font-bold text-orange-600">数据分析</div>
             <div className="text-sm text-muted-foreground">优化决策</div>
           </div>
+        </div>
+
+        {/* 帮助中心链接 */}
+        <div className="text-center">
+          <Link href="/help">
+            <Button variant="ghost" size="lg" className="group">
+              <HelpCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+              需要帮助？访问帮助中心
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

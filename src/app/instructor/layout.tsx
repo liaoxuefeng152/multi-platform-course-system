@@ -15,7 +15,8 @@ import {
   Wallet,
   User,
   LogOut,
-  Home
+  Home,
+  HelpCircle
 } from 'lucide-react';
 
 const instructorNavItems = [
@@ -143,9 +144,12 @@ export default function InstructorLayout({
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                帮助中心
-              </Button>
+              <Link href="/help">
+                <Button variant="outline" size="sm">
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  帮助中心
+                </Button>
+              </Link>
               <Link href="/">
                 <Button variant="ghost" size="sm">
                   返回首页
