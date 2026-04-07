@@ -179,7 +179,7 @@ export default function ContentPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleApprove(course)}
+                            onClick={() => handleApprove()}
                           >
                             <Check className="w-4 h-4 mr-1" />
                             通过
@@ -187,7 +187,7 @@ export default function ContentPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReject(course)}
+                            onClick={() => handleReject()}
                           >
                             <X className="w-4 h-4 mr-1" />
                             拒绝
@@ -247,7 +247,7 @@ export default function ContentPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleApprove(live)}
+                            onClick={() => handleApprove()}
                           >
                             <Check className="w-4 h-4 mr-1" />
                             通过
@@ -255,7 +255,7 @@ export default function ContentPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReject(live)}
+                            onClick={() => handleReject()}
                           >
                             <X className="w-4 h-4 mr-1" />
                             拒绝
