@@ -22,6 +22,7 @@ import { Upload, Save, X, Plus, Trash2, ArrowLeft } from 'lucide-react';
 export default function CreateCoursePage() {
   const router = useRouter();
   const [courseType, setCourseType] = useState('video');
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [courseData, setCourseData] = useState({
     title: '',
     category: '',
@@ -105,6 +106,34 @@ export default function CreateCoursePage() {
         return chapter;
       })
     );
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        alert('请上传图片文件（JPG、PNG 格式）');
+        return;
+      }
+      // 验证文件大小（限制 5MB）
+      if (file.size > 5 * 1024 * 1024) {
+        alert('图片大小不能超过 5MB');
+        return;
+      }
+      setCourseData({ ...courseData, coverImage: file });
+      // 创建预览 URL
+      const previewUrl = URL.createObjectURL(file);
+      setCoverPreview(previewUrl);
+    }
+  };
+
+  const handleRemoveCover = () => {
+    setCourseData({ ...courseData, coverImage: null });
+    if (coverPreview) {
+      URL.revokeObjectURL(coverPreview);
+      setCoverPreview(null);
+    }
   };
 
   return (
@@ -191,14 +220,50 @@ export default function CreateCoursePage() {
               {/* 课程封面 */}
               <div className="space-y-2">
                 <Label>课程封面 *</Label>
-                <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
-                  <Upload className="w-12 h-12 text-gray-400 mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    点击上传或拖拽文件到此处
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    支持 JPG、PNG 格式，建议尺寸 800x600px
-                  </p>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png"
+                  onChange={handleCoverUpload}
+                  className="hidden"
+                  id="cover-upload"
+                />
+                <div
+                  onClick={() => document.getElementById('cover-upload')?.click()}
+                  className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer relative ${
+                    coverPreview ? 'p-4' : 'p-8'
+                  }`}
+                >
+                  {coverPreview ? (
+                    <>
+                      <img
+                        src={coverPreview}
+                        alt="课程封面预览"
+                        className="max-h-48 rounded-lg object-cover"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="mt-4"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCover();
+                        }}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        删除封面
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-12 h-12 text-gray-400 mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        点击上传或拖拽文件到此处
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        支持 JPG、PNG 格式，建议尺寸 800x600px
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
