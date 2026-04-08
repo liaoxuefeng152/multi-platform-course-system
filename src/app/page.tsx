@@ -21,7 +21,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 讲师端入口 */}
           <Card className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-blue-500 cursor-pointer">
-            <Link href="/instructor">
+            <Link href="/instructor/login">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform">
@@ -35,7 +35,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <Button className="w-full group-hover:bg-blue-600 transition-colors">
-                  进入讲师端
+                  登录讲师端
                 </Button>
               </CardContent>
             </Link>
@@ -43,7 +43,7 @@ export default function Home() {
 
           {/* 管理后台入口 */}
           <Card className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-purple-500 cursor-pointer">
-            <Link href="/admin">
+            <Link href="/admin/login">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:scale-110 transition-transform">
@@ -57,7 +57,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <Button className="w-full group-hover:bg-purple-600 transition-colors" variant="secondary">
-                  进入管理后台
+                  登录管理后台
                 </Button>
               </CardContent>
             </Link>
