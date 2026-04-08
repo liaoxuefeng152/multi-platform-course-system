@@ -37,7 +37,8 @@ import {
   Calendar,
   Users,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  Radio
 } from 'lucide-react';
 
 // 模拟直播数据
@@ -54,6 +55,16 @@ const mockLives = [
   },
   {
     id: 2,
+    title: '前端开发实战直播',
+    time: '2024-03-16 20:00',
+    platform: ['抖音'],
+    status: '直播中',
+    viewers: 1256,
+    conversions: 89,
+    sales: 17800,
+  },
+  {
+    id: 3,
     title: 'Excel 数据分析实战',
     time: '2024-03-10 20:00',
     platform: ['视频号'],
@@ -63,7 +74,7 @@ const mockLives = [
     sales: 17800,
   },
   {
-    id: 3,
+    id: 4,
     title: '短视频运营技巧',
     time: '2024-03-08 15:00',
     platform: ['抖音'],
@@ -266,10 +277,20 @@ export default function LivePage() {
                         <DropdownMenuLabel>操作</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {live.status === '预约中' && (
-                          <DropdownMenuItem>
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            进入直播
-                          </DropdownMenuItem>
+                          <Link href={`/instructor/live/control/${live.id}`}>
+                            <DropdownMenuItem>
+                              <Radio className="w-4 h-4 mr-2" />
+                              进入直播
+                            </DropdownMenuItem>
+                          </Link>
+                        )}
+                        {live.status === '直播中' && (
+                          <Link href={`/instructor/live/control/${live.id}`}>
+                            <DropdownMenuItem>
+                              <Radio className="w-4 h-4 mr-2" />
+                              进入中控台
+                            </DropdownMenuItem>
+                          </Link>
                         )}
                         {live.status === '已结束' && (
                           <DropdownMenuItem>
