@@ -14,9 +14,11 @@ import {
   BarChart3,
   Wallet,
   User,
-  LogOut,
   Home,
-  HelpCircle
+  HelpCircle,
+  Shield,
+  Link2,
+  UserCircle
 } from 'lucide-react';
 
 const instructorNavItems = [
@@ -24,6 +26,11 @@ const instructorNavItems = [
     title: '讲师首页',
     href: '/instructor',
     icon: Home,
+  },
+  {
+    title: '讲师认证',
+    href: '/instructor/auth',
+    icon: Shield,
   },
   {
     title: '课程管理',
@@ -34,6 +41,11 @@ const instructorNavItems = [
     title: '直播管理',
     href: '/instructor/live',
     icon: Video,
+  },
+  {
+    title: '多平台对接',
+    href: '/instructor/platforms',
+    icon: Link2,
   },
   {
     title: '学员管理',
@@ -59,6 +71,11 @@ const instructorNavItems = [
     title: '提现管理',
     href: '/instructor/withdrawal',
     icon: Wallet,
+  },
+  {
+    title: '个人中心',
+    href: '/instructor/profile',
+    icon: UserCircle,
   },
 ];
 
@@ -111,22 +128,21 @@ export default function InstructorLayout({
 
         {/* 用户信息 */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+          <Link href="/instructor/profile">
+            <div className="flex items-center space-x-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg p-2 -m-2 transition-colors">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  讲师名称
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  点击进入个人中心
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                讲师名称
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                讲师账号
-              </p>
-            </div>
-            <Button variant="ghost" size="icon" className="shrink-0">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
+          </Link>
         </div>
       </aside>
 
