@@ -109,6 +109,9 @@ export default function PlatformLinksPage() {
   // 快手已绑定账号
   const [kuaishouAccounts] = useState<BoundAccount[]>([]);
 
+  // 小红书已绑定账号
+  const [xiaohongshuAccounts, setXiaohongshuAccounts] = useState<BoundAccount[]>([]);
+
   // 已挂载课程
   const [mountedCourses, setMountedCourses] = useState<MountedCourse[]>([
     {
@@ -173,11 +176,19 @@ export default function PlatformLinksPage() {
       setDouyinAccounts([...douyinAccounts, newAccount]);
     } else if (selectedPlatform === 'video') {
       setVideoAccounts([...videoAccounts, newAccount]);
+    } else if (selectedPlatform === 'xiaohongshu') {
+      setXiaohongshuAccounts([...xiaohongshuAccounts, newAccount]);
     }
 
     setBindDialogOpen(false);
     setScanSuccess(false);
-    alert(`${selectedPlatform === 'douyin' ? '抖音' : selectedPlatform === 'video' ? '视频号' : '快手'}账号绑定成功！`);
+    const platformNames: Record<string, string> = {
+      douyin: '抖音',
+      video: '视频号',
+      kuaishou: '快手',
+      xiaohongshu: '小红书'
+    };
+    alert(`${platformNames[selectedPlatform] || selectedPlatform}账号绑定成功！`);
   };
 
   // 解绑账号
@@ -186,6 +197,8 @@ export default function PlatformLinksPage() {
       setDouyinAccounts(douyinAccounts.filter(a => a.id !== selectedAccount?.id));
     } else if (selectedPlatform === 'video') {
       setVideoAccounts(videoAccounts.filter(a => a.id !== selectedAccount?.id));
+    } else if (selectedPlatform === 'xiaohongshu') {
+      setXiaohongshuAccounts(xiaohongshuAccounts.filter(a => a.id !== selectedAccount?.id));
     }
     setUnbindDialogOpen(false);
   };
@@ -249,6 +262,8 @@ export default function PlatformLinksPage() {
         return { name: '视频号', color: 'bg-green-500', gradient: 'from-green-500 to-emerald-500' };
       case 'kuaishou':
         return { name: '快手', color: 'bg-purple-500', gradient: 'from-purple-500 to-violet-500' };
+      case 'xiaohongshu':
+        return { name: '小红书', color: 'bg-red-500', gradient: 'from-red-500 to-pink-500' };
       default:
         return { name: platform, color: 'bg-gray-500', gradient: 'from-gray-500 to-gray-600' };
     }
@@ -464,6 +479,63 @@ export default function PlatformLinksPage() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* 小红书账号 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('xiaohongshu').gradient}`} />
+                    小红书
+                  </CardTitle>
+                  <CardDescription>绑定小红书账号用于直播挂载</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {xiaohongshuAccounts.length > 0 ? (
+                    <div className="space-y-3">
+                      {xiaohongshuAccounts.map((account) => (
+                        <div
+                          key={account.id}
+                          className="flex items-center justify-between p-3 border rounded-lg bg-green-50 dark:bg-green-900/20"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 bg-gradient-to-br ${getPlatformInfo('xiaohongshu').gradient} rounded-full flex items-center justify-center text-white font-bold`}>
+                              {account.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm">{account.name}</p>
+                                <Badge className="bg-green-500 text-xs">已绑定</Badge>
+                              </div>
+                              <p className="text-xs text-gray-500">{account.followers.toLocaleString()} 粉丝</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleUnbindClick(account, 'xiaohongshu')}
+                          >
+                            <Unlink className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                      <Smartphone className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 mb-3">暂未绑定账号</p>
+                    </div>
+                  )}
+                  <Button 
+                    className="w-full"
+                    variant={xiaohongshuAccounts.length > 0 ? 'outline' : 'default'}
+                    onClick={() => handleOpenBind('xiaohongshu')}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    {xiaohongshuAccounts.length > 0 ? '绑定更多账号' : '扫码绑定'}
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
 
             {/* 帮助说明 */}
@@ -482,7 +554,7 @@ export default function PlatformLinksPage() {
                     </div>
                     <div>
                       <p className="font-medium">点击扫码绑定</p>
-                      <p className="text-sm text-gray-500">点击平台卡片下方的"扫码绑定"按钮</p>
+                      <p className="text-sm text-gray-500">点击平台卡片下方的&quot;扫码绑定&quot;按钮</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
@@ -491,7 +563,7 @@ export default function PlatformLinksPage() {
                     </div>
                     <div>
                       <p className="font-medium">打开对应APP扫码</p>
-                      <p className="text-sm text-gray-500">用抖音/微信打开扫一扫，扫描页面中的二维码</p>
+                      <p className="text-sm text-gray-500">用抖音/微信/小红书APP打开扫一扫，扫描页面中的二维码</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
@@ -774,7 +846,7 @@ export default function PlatformLinksPage() {
           <DialogHeader>
             <DialogTitle>确认解绑账号</DialogTitle>
             <DialogDescription>
-              解绑后，该账号下的直播将无法挂载课程。确定要解绑"{selectedAccount?.name}"吗？
+              解绑后，该账号下的直播将无法挂载课程。确定要解绑&quot;{selectedAccount?.name}&quot;吗？
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
