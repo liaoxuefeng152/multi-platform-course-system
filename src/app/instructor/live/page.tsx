@@ -2,9 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -12,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -22,306 +32,464 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Plus,
-  Search,
-  MoreVertical,
   Video,
   Calendar,
-  Users,
-  TrendingUp,
   ExternalLink,
-  Radio
+  Radio,
+  Link2,
+  Clock,
+  BookOpen,
+  Trash2,
+  ChevronRight,
+  Megaphone
 } from 'lucide-react';
 
-// 模拟直播数据
-const mockLives = [
-  {
-    id: 1,
-    title: 'Python 进阶技巧分享',
-    time: '2024-03-15 19:00',
-    platform: ['抖音', '视频号'],
-    status: '预约中',
-    viewers: 0,
-    conversions: 0,
-    sales: 0,
-  },
-  {
-    id: 2,
-    title: '前端开发实战直播',
-    time: '2024-03-16 20:00',
-    platform: ['抖音'],
-    status: '直播中',
-    viewers: 1256,
-    conversions: 89,
-    sales: 17800,
-  },
-  {
-    id: 3,
-    title: 'Excel 数据分析实战',
-    time: '2024-03-10 20:00',
-    platform: ['视频号'],
-    status: '已结束',
-    viewers: 1234,
-    conversions: 89,
-    sales: 17800,
-  },
-  {
-    id: 4,
-    title: '短视频运营技巧',
-    time: '2024-03-08 15:00',
-    platform: ['抖音'],
-    status: '已结束',
-    viewers: 892,
-    conversions: 67,
-    sales: 13400,
-  },
-];
+interface LivePlan {
+  id: string;
+  title: string;
+  courseName: string;
+  courseId: string;
+  platform: 'douyin' | 'video' | 'kuaishou' | 'xiaohongshu';
+  scheduledAt: string;
+  status: 'upcoming' | 'today' | 'ended';
+  links: string[];
+}
 
-export default function LivePage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [platformFilter, setPlatformFilter] = useState('all');
+export default function LiveManagementPage() {
+  // 直播计划列表
+  const [livePlans, setLivePlans] = useState<LivePlan[]>([
+    {
+      id: 'LP001',
+      title: 'Python 入门第一课',
+      courseName: 'Python 从入门到精通',
+      courseId: 'C001',
+      platform: 'douyin',
+      scheduledAt: '2024-01-20 19:00',
+      status: 'today',
+      links: [],
+    },
+    {
+      id: 'LP002',
+      title: 'React 核心概念详解',
+      courseName: 'React 实战课程',
+      courseId: 'C002',
+      platform: 'video',
+      scheduledAt: '2024-01-22 20:00',
+      status: 'upcoming',
+      links: [],
+    },
+    {
+      id: 'LP003',
+      title: 'TypeScript 进阶技巧',
+      courseName: 'TypeScript 深入浅出',
+      courseId: 'C003',
+      platform: 'kuaishou',
+      scheduledAt: '2024-01-25 19:30',
+      status: 'upcoming',
+      links: [],
+    },
+    {
+      id: 'LP004',
+      title: 'Node.js 实战指南',
+      courseName: 'Node.js 全栈开发',
+      courseId: 'C004',
+      platform: 'xiaohongshu',
+      scheduledAt: '2024-01-28 20:00',
+      status: 'upcoming',
+      links: [],
+    },
+    {
+      id: 'LP005',
+      title: 'Vue3 入门教程',
+      courseName: 'Vue3 实战课程',
+      courseId: 'C005',
+      platform: 'douyin',
+      scheduledAt: '2024-01-15 19:00',
+      status: 'ended',
+      links: ['https://v.douyin.com/xxx'],
+    },
+  ]);
 
-  // 过滤直播
-  const filteredLives = mockLives.filter((live) => {
-    const matchesSearch = live.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || live.status === statusFilter;
-    const matchesPlatform =
-      platformFilter === 'all' || live.platform.includes(platformFilter);
-    return matchesSearch && matchesStatus && matchesPlatform;
+  // 添加计划弹窗
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    course: '',
+    platform: '',
+    date: '',
+    time: '',
   });
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: any; color: string }> = {
-      '预约中': { label: '预约中', variant: 'default', color: 'bg-blue-500' },
-      '直播中': { label: '直播中', variant: 'default', color: 'bg-green-500' },
-      '已结束': { label: '已结束', variant: 'secondary', color: 'bg-gray-500' },
-      '已取消': { label: '已取消', variant: 'secondary', color: 'bg-red-500' },
-    };
-    const config = statusConfig[status] || { label: status, variant: 'outline', color: 'bg-gray-500' };
-    return (
-      <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${config.color}`} />
-        <Badge variant={config.variant}>{config.label}</Badge>
-      </div>
-    );
+  // 课程列表（模拟）
+  const courses = [
+    { id: 'C001', name: 'Python 从入门到精通', price: 299 },
+    { id: 'C002', name: 'React 实战课程', price: 399 },
+    { id: 'C003', name: 'TypeScript 深入浅出', price: 299 },
+    { id: 'C004', name: 'Node.js 全栈开发', price: 499 },
+    { id: 'C005', name: 'Vue3 实战课程', price: 299 },
+  ];
+
+  // 平台信息
+  const getPlatformInfo = (platform: string) => {
+    switch (platform) {
+      case 'douyin':
+        return { name: '抖音', color: 'bg-pink-500', gradient: 'from-pink-500 to-rose-500' };
+      case 'video':
+        return { name: '视频号', color: 'bg-green-500', gradient: 'from-green-500 to-emerald-500' };
+      case 'kuaishou':
+        return { name: '快手', color: 'bg-purple-500', gradient: 'from-purple-500 to-violet-500' };
+      case 'xiaohongshu':
+        return { name: '小红书', color: 'bg-red-500', gradient: 'from-red-500 to-pink-500' };
+      default:
+        return { name: platform, color: 'bg-gray-500', gradient: 'from-gray-500 to-gray-600' };
+    }
   };
 
-  const formatMoney = (amount: number) => {
-    return `¥${(amount / 100).toLocaleString()}`;
+  // 获取状态标签
+  const getStatusBadge = (status: LivePlan['status']) => {
+    switch (status) {
+      case 'today':
+        return <Badge className="bg-red-500 animate-pulse">今日直播</Badge>;
+      case 'upcoming':
+        return <Badge variant="outline" className="text-blue-500 border-blue-500">待直播</Badge>;
+      case 'ended':
+        return <Badge variant="secondary">已结束</Badge>;
+    }
+  };
+
+  // 添加直播计划
+  const handleAddPlan = () => {
+    if (formData.title && formData.course && formData.platform && formData.date && formData.time) {
+      const course = courses.find(c => c.id === formData.course);
+      const newPlan: LivePlan = {
+        id: `LP${String(livePlans.length + 1).padStart(3, '0')}`,
+        title: formData.title,
+        courseName: course?.name || '',
+        courseId: formData.course,
+        platform: formData.platform as LivePlan['platform'],
+        scheduledAt: `${formData.date} ${formData.time}`,
+        status: 'upcoming',
+        links: [],
+      };
+      setLivePlans([newPlan, ...livePlans]);
+      setAddDialogOpen(false);
+      setFormData({ title: '', course: '', platform: '', date: '', time: '' });
+    }
+  };
+
+  // 删除计划
+  const handleDelete = (id: string) => {
+    setLivePlans(livePlans.filter(p => p.id !== id));
+  };
+
+  // 统计
+  const stats = {
+    total: livePlans.length,
+    today: livePlans.filter(p => p.status === 'today').length,
+    upcoming: livePlans.filter(p => p.status === 'upcoming').length,
+    ended: livePlans.filter(p => p.status === 'ended').length,
   };
 
   return (
-    <div className="space-y-6">
-      {/* 数据概览 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">本月直播场次</p>
-                <p className="text-2xl font-bold mt-1">12</p>
-              </div>
-              <Video className="w-8 h-8 text-blue-500 opacity-20" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* 顶部导航 */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/instructor" className="text-muted-foreground hover:text-foreground">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </Link>
+            <div>
+              <h1 className="text-xl font-semibold">直播管理</h1>
+              <p className="text-sm text-muted-foreground">规划直播计划，挂载课程链接</p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" asChild>
+              <Link href="/instructor/platforms">
+                <Link2 className="w-4 h-4 mr-2" />
+                去生成挂载链接
+              </Link>
+            </Button>
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  添加直播计划
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Megaphone className="w-5 h-5 text-blue-500" />
+                    添加直播计划
+                  </DialogTitle>
+                  <DialogDescription>
+                    规划您的直播安排，选择要挂载的课程
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>直播主题</Label>
+                    <Input
+                      placeholder="例如：Python 入门第一课"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>选择平台</Label>
+                    <Select value={formData.platform} onValueChange={(v) => setFormData({ ...formData, platform: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择直播平台" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="douyin">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-pink-500" />
+                            抖音
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="video">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500" />
+                            视频号
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="kuaishou">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-purple-500" />
+                            快手
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="xiaohongshu">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-red-500" />
+                            小红书
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>挂载课程</Label>
+                    <Select value={formData.course} onValueChange={(v) => setFormData({ ...formData, course: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择要挂载的课程" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.name} - ¥{course.price}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>直播日期</Label>
+                      <Input
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>直播时间</Label>
+                      <Input
+                        type="time"
+                        value={formData.time}
+                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                    取消
+                  </Button>
+                  <Button onClick={handleAddPlan}>
+                    添加计划
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* 统计卡片 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">直播计划</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                </div>
+                <Calendar className="w-10 h-10 text-blue-500 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-red-200">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">今日直播</p>
+                  <p className="text-2xl font-bold text-red-500">{stats.today}</p>
+                </div>
+                <Radio className="w-10 h-10 text-red-500 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">待直播</p>
+                  <p className="text-2xl font-bold text-blue-500">{stats.upcoming}</p>
+                </div>
+                <Clock className="w-10 h-10 text-blue-500 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">已结束</p>
+                  <p className="text-2xl font-bold">{stats.ended}</p>
+                </div>
+                <Video className="w-10 h-10 text-gray-500 opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 直播计划列表 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-blue-500" />
+              直播计划
+            </CardTitle>
+            <CardDescription>
+              规划您的直播安排，创建后前往「多平台对接」生成挂载链接
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>直播主题</TableHead>
+                  <TableHead>直播平台</TableHead>
+                  <TableHead>挂载课程</TableHead>
+                  <TableHead>直播时间</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {livePlans.map((plan) => {
+                  const platformInfo = getPlatformInfo(plan.platform);
+                  return (
+                    <TableRow key={plan.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${platformInfo.gradient} flex items-center justify-center`}>
+                            <Video className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{plan.title}</p>
+                            <p className="text-xs text-gray-500">ID: {plan.id}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={platformInfo.color.replace('bg-', 'border-').replace('500', '500 text-')}>
+                          {platformInfo.name}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <BookOpen className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm">{plan.courseName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p>{plan.scheduledAt.split(' ')[0]}</p>
+                          <p className="text-gray-500">{plan.scheduledAt.split(' ')[1]}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(plan.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {plan.status !== 'ended' && (
+                            <Button size="sm" variant="outline" asChild>
+                              <Link href="/instructor/platforms">
+                                <Link2 className="w-4 h-4 mr-1" />
+                                生成链接
+                              </Link>
+                            </Button>
+                          )}
+                          {plan.links.length > 0 && (
+                            <Button size="sm" variant="ghost">
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              查看
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleDelete(plan.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">总观看人数</p>
-                <p className="text-2xl font-bold mt-1">8,234</p>
+        {/* 使用说明 */}
+        <Card className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-medium">创建直播计划</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    选择直播平台和要挂载的课程，设置直播时间，系统将帮助您管理直播计划。
+                  </p>
+                </div>
               </div>
-              <Users className="w-8 h-8 text-green-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">总转化人数</p>
-                <p className="text-2xl font-bold mt-1">456</p>
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center shrink-0">
+                  <Link2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-medium">生成挂载链接</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    点击「生成链接」跳转至「多平台对接」页面，扫码授权后获取课程挂载链接。
+                  </p>
+                </div>
               </div>
-              <TrendingUp className="w-8 h-8 text-purple-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">直播销售额</p>
-                <p className="text-2xl font-bold mt-1">¥45,678</p>
-              </div>
-              <Calendar className="w-8 h-8 text-orange-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* 顶部操作栏 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>直播管理</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                管理您的直播场次，支持抖音、视频号直播挂载
-              </p>
-            </div>
-            <Link href="/instructor/live/create">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                创建直播
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* 搜索框 */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="搜索直播主题..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* 筛选器 */}
-            <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="状态" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部状态</SelectItem>
-                  <SelectItem value="预约中">预约中</SelectItem>
-                  <SelectItem value="直播中">直播中</SelectItem>
-                  <SelectItem value="已结束">已结束</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="平台" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部平台</SelectItem>
-                  <SelectItem value="抖音">抖音</SelectItem>
-                  <SelectItem value="视频号">视频号</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 直播列表 */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>直播主题</TableHead>
-                <TableHead>直播时间</TableHead>
-                <TableHead>平台</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>观看人数</TableHead>
-                <TableHead>转化人数</TableHead>
-                <TableHead>销售额</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLives.map((live) => (
-                <TableRow key={live.id}>
-                  <TableCell className="font-medium">{live.title}</TableCell>
-                  <TableCell>{live.time}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {live.platform.map((p) => (
-                        <Badge key={p} variant="outline">
-                          {p}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(live.status)}</TableCell>
-                  <TableCell>{live.viewers}</TableCell>
-                  <TableCell>{live.conversions}</TableCell>
-                  <TableCell>{formatMoney(live.sales)}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>操作</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {live.status === '预约中' && (
-                          <Link href={`/instructor/live/control/${live.id}`}>
-                            <DropdownMenuItem>
-                              <Radio className="w-4 h-4 mr-2" />
-                              进入直播
-                            </DropdownMenuItem>
-                          </Link>
-                        )}
-                        {live.status === '直播中' && (
-                          <Link href={`/instructor/live/control/${live.id}`}>
-                            <DropdownMenuItem>
-                              <Radio className="w-4 h-4 mr-2" />
-                              进入中控台
-                            </DropdownMenuItem>
-                          </Link>
-                        )}
-                        {live.status === '已结束' && (
-                          <DropdownMenuItem>
-                            <Video className="w-4 h-4 mr-2" />
-                            查看回放
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          挂载课程
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
-                          取消直播
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredLives.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    暂无直播数据
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }
