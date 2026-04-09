@@ -6,9 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -36,11 +44,11 @@ import {
   Zap,
   BookOpen,
   HelpCircle,
-  ChevronRight,
   Smartphone,
-  FileText,
   PlayCircle,
-  Check
+  Check,
+  QrCode,
+  Loader2
 } from 'lucide-react';
 
 interface BoundAccount {
@@ -49,6 +57,7 @@ interface BoundAccount {
   boundAt: string;
   status: 'active' | 'inactive';
   followers: number;
+  avatar?: string;
 }
 
 interface MountedCourse {
@@ -60,15 +69,17 @@ interface MountedCourse {
 }
 
 export default function PlatformLinksPage() {
+  // 弹窗状态
   const [bindDialogOpen, setBindDialogOpen] = useState(false);
   const [unbindDialogOpen, setUnbindDialogOpen] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('');
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
 
   // 挂载相关状态
-  const [mountPlatform] = useState<'douyin' | 'video'>('douyin');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedLive, setSelectedLive] = useState('');
   const [generatedLinks, setGeneratedLinks] = useState<string[]>([]);
@@ -94,6 +105,9 @@ export default function PlatformLinksPage() {
       followers: 45600,
     },
   ]);
+
+  // 快手已绑定账号
+  const [kuaishouAccounts] = useState<BoundAccount[]>([]);
 
   // 已挂载课程
   const [mountedCourses, setMountedCourses] = useState<MountedCourse[]>([
@@ -127,19 +141,61 @@ export default function PlatformLinksPage() {
     { id: '2', title: 'Python 进阶技巧分享', time: '2024-03-15 19:00' },
   ];
 
-  const handleBind = () => {
-    // 模拟绑定流程
-    setBindDialogOpen(false);
-    alert('即将跳转平台授权页面，请完成授权操作');
+  // 打开扫码绑定弹窗
+  const handleOpenBind = (platform: string) => {
+    setSelectedPlatform(platform);
+    setBindDialogOpen(true);
+    setScanning(false);
+    setScanSuccess(false);
   };
 
-  const handleUnbind = (platform: string) => {
-    if (platform === 'douyin') {
-      setDouyinAccounts([]);
-    } else {
-      setVideoAccounts([]);
+  // 模拟扫码成功
+  const handleSimulateScan = () => {
+    setScanning(true);
+    setTimeout(() => {
+      setScanning(false);
+      setScanSuccess(true);
+    }, 2000);
+  };
+
+  // 确认绑定成功
+  const handleConfirmBind = () => {
+    const newAccount: BoundAccount = {
+      id: `${selectedPlatform.toUpperCase()}${Date.now()}`,
+      name: selectedPlatform === 'douyin' ? '张老师课堂' : 
+            selectedPlatform === 'video' ? '张老师知识分享' : '快手账号',
+      boundAt: new Date().toLocaleDateString(),
+      status: 'active',
+      followers: 0,
+    };
+
+    if (selectedPlatform === 'douyin') {
+      setDouyinAccounts([...douyinAccounts, newAccount]);
+    } else if (selectedPlatform === 'video') {
+      setVideoAccounts([...videoAccounts, newAccount]);
+    }
+
+    setBindDialogOpen(false);
+    setScanSuccess(false);
+    alert(`${selectedPlatform === 'douyin' ? '抖音' : selectedPlatform === 'video' ? '视频号' : '快手'}账号绑定成功！`);
+  };
+
+  // 解绑账号
+  const handleUnbind = () => {
+    if (selectedPlatform === 'douyin') {
+      setDouyinAccounts(douyinAccounts.filter(a => a.id !== selectedAccount?.id));
+    } else if (selectedPlatform === 'video') {
+      setVideoAccounts(videoAccounts.filter(a => a.id !== selectedAccount?.id));
     }
     setUnbindDialogOpen(false);
+  };
+
+  const [selectedAccount, setSelectedAccount] = useState<BoundAccount | null>(null);
+
+  const handleUnbindClick = (account: BoundAccount, platform: string) => {
+    setSelectedAccount(account);
+    setSelectedPlatform(platform);
+    setUnbindDialogOpen(true);
   };
 
   const handleSync = () => {
@@ -175,7 +231,7 @@ export default function PlatformLinksPage() {
         {
           id: Date.now(),
           title: course?.title || '',
-          platform: mountPlatform === 'douyin' ? '抖音' : '视频号',
+          platform: '抖音',
           linkedAt: new Date().toLocaleDateString(),
           views: 0,
         },
@@ -183,6 +239,22 @@ export default function PlatformLinksPage() {
       alert('课程挂载成功');
     }
   };
+
+  // 获取平台信息
+  const getPlatformInfo = (platform: string) => {
+    switch (platform) {
+      case 'douyin':
+        return { name: '抖音', color: 'bg-pink-500', gradient: 'from-pink-500 to-rose-500' };
+      case 'video':
+        return { name: '视频号', color: 'bg-green-500', gradient: 'from-green-500 to-emerald-500' };
+      case 'kuaishou':
+        return { name: '快手', color: 'bg-purple-500', gradient: 'from-purple-500 to-violet-500' };
+      default:
+        return { name: platform, color: 'bg-gray-500', gradient: 'from-gray-500 to-gray-600' };
+    }
+  };
+
+  const platformInfo = getPlatformInfo(selectedPlatform);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -207,324 +279,247 @@ export default function PlatformLinksPage() {
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        <Tabs defaultValue="douyin" className="space-y-6">
+        <Tabs defaultValue="accounts" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="douyin" className="gap-2">
-              <span className="w-2 h-2 rounded-full bg-pink-500" />
-              抖音
-            </TabsTrigger>
-            <TabsTrigger value="video" className="gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              视频号
+            <TabsTrigger value="accounts" className="gap-2">
+              <Link2 className="w-4 h-4" />
+              账号管理
             </TabsTrigger>
             <TabsTrigger value="mount" className="gap-2">
-              <Link2 className="w-4 h-4" />
-              挂载入口
+              <BookOpen className="w-4 h-4" />
+              挂载课程
             </TabsTrigger>
           </TabsList>
 
-          {/* 抖音账号绑定 */}
-          <TabsContent value="douyin">
+          {/* 账号管理 */}
+          <TabsContent value="accounts">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 左侧绑定指引 */}
-              <Card className="lg:col-span-1">
+              {/* 抖音账号 */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-pink-500" />
-                    抖音绑定教程
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('douyin').gradient}`} />
+                    抖音
                   </CardTitle>
-                  <CardDescription>按照以下步骤完成抖音账号绑定</CardDescription>
+                  <CardDescription>绑定抖音账号用于直播挂载</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-pink-600 font-bold shrink-0">
-                        1
-                      </div>
-                      <div>
-                        <p className="font-medium">打开抖音开放平台</p>
-                        <p className="text-sm text-gray-500">访问抖音开放平台官网</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-pink-600 font-bold shrink-0">
-                        2
-                      </div>
-                      <div>
-                        <p className="font-medium">创建应用并获取授权</p>
-                        <p className="text-sm text-gray-500">完成开发者认证后创建应用</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-pink-600 font-bold shrink-0">
-                        3
-                      </div>
-                      <div>
-                        <p className="font-medium">填写授权信息</p>
-                        <p className="text-sm text-gray-500">将 App ID 和 App Secret 填入下方</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <p className="text-sm text-gray-500 mb-3">帮助资源</p>
-                    <div className="space-y-2">
-                      <Button variant="outline" className="w-full justify-start" size="sm">
-                        <FileText className="w-4 h-4 mr-2" />
-                        图文教程
-                        <ChevronRight className="w-4 h-4 ml-auto" />
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start" size="sm">
-                        <PlayCircle className="w-4 h-4 mr-2" />
-                        视频教程
-                        <ChevronRight className="w-4 h-4 ml-auto" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 右侧绑定操作区 */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>抖音账号绑定</CardTitle>
-                  <CardDescription>
-                    绑定抖音账号后可以在直播中挂载课程进行销售
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* 已绑定账号 */}
+                <CardContent className="space-y-4">
                   {douyinAccounts.length > 0 ? (
-                    <div className="space-y-4">
-                      <Label>已绑定的账号</Label>
+                    <div className="space-y-3">
                       {douyinAccounts.map((account) => (
                         <div
                           key={account.id}
-                          className="flex items-center justify-between p-4 border rounded-lg bg-green-50 dark:bg-green-900/20"
+                          className="flex items-center justify-between p-3 border rounded-lg bg-green-50 dark:bg-green-900/20"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 bg-gradient-to-br ${getPlatformInfo('douyin').gradient} rounded-full flex items-center justify-center text-white font-bold`}>
                               {account.name.charAt(0)}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="font-medium">{account.name}</p>
-                                <Badge className="bg-green-500">已绑定</Badge>
+                                <p className="font-medium text-sm">{account.name}</p>
+                                <Badge className="bg-green-500 text-xs">已绑定</Badge>
                               </div>
-                              <p className="text-sm text-gray-500">
-                                绑定时间：{account.boundAt} | 粉丝数：{account.followers.toLocaleString()}
-                              </p>
+                              <p className="text-xs text-gray-500">{account.followers.toLocaleString()} 粉丝</p>
                             </div>
                           </div>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-600"
-                            onClick={() => {
-                              setSelectedPlatform('douyin');
-                              setUnbindDialogOpen(true);
-                            }}
+                            onClick={() => handleUnbindClick(account, 'douyin')}
                           >
-                            <Unlink className="w-4 h-4 mr-2" />
-                            解绑
+                            <Unlink className="w-4 h-4" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Smartphone className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <p className="text-gray-500 mb-4">暂未绑定抖音账号</p>
-                      <Button onClick={() => setBindDialogOpen(true)}>
-                        <Link2 className="w-4 h-4 mr-2" />
-                        绑定抖音账号
-                      </Button>
+                    <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                      <Smartphone className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 mb-3">暂未绑定账号</p>
                     </div>
                   )}
-
-                  {/* 绑定按钮 */}
-                  <div className="border-t pt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => setBindDialogOpen(true)}
-                    >
-                      <Link2 className="w-4 h-4 mr-2" />
-                      {douyinAccounts.length > 0 ? '绑定更多账号' : '立即绑定'}
-                    </Button>
-                  </div>
+                  <Button 
+                    className="w-full" 
+                    variant={douyinAccounts.length > 0 ? 'outline' : 'default'}
+                    onClick={() => handleOpenBind('douyin')}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    {douyinAccounts.length > 0 ? '绑定更多账号' : '扫码绑定'}
+                  </Button>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
 
-          {/* 视频号账号绑定 */}
-          <TabsContent value="video">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 左侧绑定指引 */}
-              <Card className="lg:col-span-1">
+              {/* 视频号账号 */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-green-500" />
-                    视频号绑定教程
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('video').gradient}`} />
+                    视频号
                   </CardTitle>
-                  <CardDescription>按照以下步骤完成视频号账号绑定</CardDescription>
+                  <CardDescription>绑定视频号用于直播挂载</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 font-bold shrink-0">
-                        1
-                      </div>
-                      <div>
-                        <p className="font-medium">登录微信视频号助手</p>
-                        <p className="text-sm text-gray-500">访问微信视频号助手官网</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 font-bold shrink-0">
-                        2
-                      </div>
-                      <div>
-                        <p className="font-medium">获取授权码</p>
-                        <p className="text-sm text-gray-500">在设置中生成授权授权码</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 font-bold shrink-0">
-                        3
-                      </div>
-                      <div>
-                        <p className="font-medium">填写授权信息</p>
-                        <p className="text-sm text-gray-500">将授权码填入下方完成绑定</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-2">视频号挂载规则</p>
-                    <ul className="text-sm text-gray-500 space-y-1">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                        仅认证企业号支持挂载
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                        直播需提前30分钟设置
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                        短视频需为原创内容
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <p className="text-sm text-gray-500 mb-3">帮助资源</p>
-                    <div className="space-y-2">
-                      <Button variant="outline" className="w-full justify-start" size="sm">
-                        <FileText className="w-4 h-4 mr-2" />
-                        图文教程
-                        <ChevronRight className="w-4 h-4 ml-auto" />
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start" size="sm">
-                        <PlayCircle className="w-4 h-4 mr-2" />
-                        视频教程
-                        <ChevronRight className="w-4 h-4 ml-auto" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 右侧绑定操作区 */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>视频号账号绑定</CardTitle>
-                  <CardDescription>
-                    绑定视频号账号后可以在直播中挂载课程进行销售
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* 已绑定账号 */}
+                <CardContent className="space-y-4">
                   {videoAccounts.length > 0 ? (
-                    <div className="space-y-4">
-                      <Label>已绑定的账号</Label>
+                    <div className="space-y-3">
                       {videoAccounts.map((account) => (
                         <div
                           key={account.id}
-                          className="flex items-center justify-between p-4 border rounded-lg bg-green-50 dark:bg-green-900/20"
+                          className="flex items-center justify-between p-3 border rounded-lg bg-green-50 dark:bg-green-900/20"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-bold">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 bg-gradient-to-br ${getPlatformInfo('video').gradient} rounded-full flex items-center justify-center text-white font-bold`}>
                               {account.name.charAt(0)}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="font-medium">{account.name}</p>
-                                <Badge className="bg-green-500">已绑定</Badge>
+                                <p className="font-medium text-sm">{account.name}</p>
+                                <Badge className="bg-green-500 text-xs">已绑定</Badge>
                               </div>
-                              <p className="text-sm text-gray-500">
-                                绑定时间：{account.boundAt} | 粉丝数：{account.followers.toLocaleString()}
-                              </p>
+                              <p className="text-xs text-gray-500">{account.followers.toLocaleString()} 粉丝</p>
                             </div>
                           </div>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-600"
-                            onClick={() => {
-                              setSelectedPlatform('video');
-                              setUnbindDialogOpen(true);
-                            }}
+                            onClick={() => handleUnbindClick(account, 'video')}
                           >
-                            <Unlink className="w-4 h-4 mr-2" />
-                            解绑
+                            <Unlink className="w-4 h-4" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Smartphone className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <p className="text-gray-500 mb-4">暂未绑定视频号账号</p>
-                      <Button onClick={() => setBindDialogOpen(true)}>
-                        <Link2 className="w-4 h-4 mr-2" />
-                        绑定视频号账号
-                      </Button>
+                    <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                      <Smartphone className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 mb-3">暂未绑定账号</p>
                     </div>
                   )}
+                  <Button 
+                    className="w-full"
+                    variant={videoAccounts.length > 0 ? 'outline' : 'default'}
+                    onClick={() => handleOpenBind('video')}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    {videoAccounts.length > 0 ? '绑定更多账号' : '扫码绑定'}
+                  </Button>
+                </CardContent>
+              </Card>
 
-                  {/* 绑定按钮 */}
-                  <div className="border-t pt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => setBindDialogOpen(true)}
-                    >
-                      <Link2 className="w-4 h-4 mr-2" />
-                      {videoAccounts.length > 0 ? '绑定更多账号' : '立即绑定'}
-                    </Button>
-                  </div>
+              {/* 快手账号 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('kuaishou').gradient}`} />
+                    快手
+                  </CardTitle>
+                  <CardDescription>绑定快手账号用于直播挂载</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {kuaishouAccounts.length > 0 ? (
+                    <div className="space-y-3">
+                      {kuaishouAccounts.map((account) => (
+                        <div
+                          key={account.id}
+                          className="flex items-center justify-between p-3 border rounded-lg bg-green-50 dark:bg-green-900/20"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 bg-gradient-to-br ${getPlatformInfo('kuaishou').gradient} rounded-full flex items-center justify-center text-white font-bold`}>
+                              {account.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm">{account.name}</p>
+                                <Badge className="bg-green-500 text-xs">已绑定</Badge>
+                              </div>
+                              <p className="text-xs text-gray-500">{account.followers.toLocaleString()} 粉丝</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleUnbindClick(account, 'kuaishou')}
+                          >
+                            <Unlink className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                      <Smartphone className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 mb-3">暂未绑定账号</p>
+                    </div>
+                  )}
+                  <Button 
+                    className="w-full"
+                    variant={kuaishouAccounts.length > 0 ? 'outline' : 'default'}
+                    onClick={() => handleOpenBind('kuaishou')}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    {kuaishouAccounts.length > 0 ? '绑定更多账号' : '扫码绑定'}
+                  </Button>
                 </CardContent>
               </Card>
             </div>
+
+            {/* 帮助说明 */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-blue-500" />
+                  绑定教程
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="flex gap-3">
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getPlatformInfo('douyin').gradient} flex items-center justify-center text-white font-bold shrink-0`}>
+                      1
+                    </div>
+                    <div>
+                      <p className="font-medium">点击扫码绑定</p>
+                      <p className="text-sm text-gray-500">点击平台卡片下方的"扫码绑定"按钮</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getPlatformInfo('douyin').gradient} flex items-center justify-center text-white font-bold shrink-0`}>
+                      2
+                    </div>
+                    <div>
+                      <p className="font-medium">打开对应APP扫码</p>
+                      <p className="text-sm text-gray-500">用抖音/微信打开扫一扫，扫描页面中的二维码</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getPlatformInfo('douyin').gradient} flex items-center justify-center text-white font-bold shrink-0`}>
+                      3
+                    </div>
+                    <div>
+                      <p className="font-medium">授权成功</p>
+                      <p className="text-sm text-gray-500">确认授权后，账号自动绑定成功</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* 挂载入口 */}
+          {/* 挂载课程 */}
           <TabsContent value="mount">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 抖音挂载入口 */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-pink-500" />
-                    抖音挂载入口
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('douyin').gradient}`} />
+                    抖音挂载
                   </CardTitle>
                   <CardDescription>
-                    选择课程或直播，生成抖音挂载链接
+                    选择课程生成抖音挂载链接
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -586,16 +581,6 @@ export default function PlatformLinksPage() {
                       ))}
                     </div>
                   )}
-
-                  <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-2">抖音挂载步骤</p>
-                    <div className="text-sm text-gray-500 space-y-1">
-                      <p>1. 复制生成的挂载链接</p>
-                      <p>2. 打开抖音创作服务平台</p>
-                      <p>3. 在视频描述中添加挂载链接</p>
-                      <p>4. 发布视频后在评论区置顶链接</p>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
@@ -603,11 +588,11 @@ export default function PlatformLinksPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-green-500" />
-                    视频号挂载入口
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('video').gradient}`} />
+                    视频号挂载
                   </CardTitle>
                   <CardDescription>
-                    选择视频号直播并关联课程进行挂载
+                    选择直播并关联课程进行挂载
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -651,36 +636,6 @@ export default function PlatformLinksPage() {
                     <Link2 className="w-4 h-4 mr-2" />
                     关联挂载
                   </Button>
-
-                  <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-2">已挂载课程预览</p>
-                    <div className="space-y-2">
-                      {mountedCourses
-                        .filter((c) => c.platform === '视频号')
-                        .map((course) => (
-                          <div
-                            key={course.id}
-                            className="flex items-center justify-between p-3 border rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <BookOpen className="w-5 h-5 text-gray-400" />
-                              <div>
-                                <p className="text-sm font-medium">{course.title}</p>
-                                <p className="text-xs text-gray-500">
-                                  挂载时间：{course.linkedAt} | 浏览量：{course.views.toLocaleString()}
-                                </p>
-                              </div>
-                            </div>
-                            <Badge variant="outline">已挂载</Badge>
-                          </div>
-                        ))}
-                      {mountedCourses.filter((c) => c.platform === '视频号').length === 0 && (
-                        <p className="text-sm text-gray-400 text-center py-4">
-                          暂无挂载课程
-                        </p>
-                      )}
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -690,11 +645,9 @@ export default function PlatformLinksPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Video className="w-5 h-5" />
-                  已挂载课程总览
+                  已挂载课程
                 </CardTitle>
-                <CardDescription>
-                  查看所有已挂载到各平台的课程
-                </CardDescription>
+                <CardDescription>查看所有已挂载的课程</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -743,53 +696,74 @@ export default function PlatformLinksPage() {
         </Tabs>
       </div>
 
-      {/* 绑定弹窗 */}
+      {/* 扫码绑定弹窗 */}
       <Dialog open={bindDialogOpen} onOpenChange={setBindDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>绑定账号</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${platformInfo.gradient}`} />
+              绑定{platformInfo.name}账号
+            </DialogTitle>
             <DialogDescription>
-              点击下方按钮跳转到平台授权页面，完成授权后返回本页面
+              使用{platformInfo.name}APP扫描下方二维码进行授权
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center text-white font-bold">
-                    抖
-                  </div>
-                  <div>
-                    <p className="font-medium">抖音开放平台</p>
-                    <p className="text-sm text-gray-500">抖音账号授权</p>
-                  </div>
+          
+          <div className="flex flex-col items-center py-6">
+            {!scanning && !scanSuccess ? (
+              <>
+                {/* 二维码 */}
+                <div className="bg-white p-4 rounded-lg border-2 border-dashed">
+                  <QRCodeSVG 
+                    value={`https://example.com/bind/${selectedPlatform}?t=${Date.now()}`}
+                    size={200}
+                    level="H"
+                    includeMargin
+                  />
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-            <div className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white font-bold">
-                    视
-                  </div>
-                  <div>
-                    <p className="font-medium">微信视频号</p>
-                    <p className="text-sm text-gray-500">视频号账号授权</p>
-                  </div>
+                <p className="text-sm text-gray-500 mt-4">
+                  打开{platformInfo.name} → 扫一扫 → 扫描上方二维码
+                </p>
+                {/* 模拟扫码按钮 */}
+                <Button 
+                  className="mt-4"
+                  variant="outline"
+                  onClick={handleSimulateScan}
+                >
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  模拟扫码（测试用）
+                </Button>
+              </>
+            ) : scanning ? (
+              <>
+                <div className="w-48 h-48 flex items-center justify-center">
+                  <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
+                <p className="text-sm text-gray-500 mt-4">授权中，请稍候...</p>
+              </>
+            ) : (
+              <>
+                <div className="w-48 h-48 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-16 h-16 text-green-500" />
+                </div>
+                <p className="text-lg font-medium text-green-600 mt-4">授权成功！</p>
+                <p className="text-sm text-gray-500 mt-1">即将绑定您的{platformInfo.name}账号</p>
+              </>
+            )}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setBindDialogOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleBind}>
-              <ExternalLink className="w-4 h-4 mr-2" />
-              前往授权
-            </Button>
+            {scanSuccess ? (
+              <Button onClick={handleConfirmBind}>
+                <Check className="w-4 h-4 mr-2" />
+                确认绑定
+              </Button>
+            ) : (
+              <Button disabled>等待扫码</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -798,19 +772,16 @@ export default function PlatformLinksPage() {
       <Dialog open={unbindDialogOpen} onOpenChange={setUnbindDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>确认解绑</DialogTitle>
+            <DialogTitle>确认解绑账号</DialogTitle>
             <DialogDescription>
-              解绑后，该平台的直播将无法挂载课程。确定要解绑吗？
+              解绑后，该账号下的直播将无法挂载课程。确定要解绑"{selectedAccount?.name}"吗？
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUnbindDialogOpen(false)}>
               取消
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => handleUnbind(selectedPlatform)}
-            >
+            <Button variant="destructive" onClick={handleUnbind}>
               确认解绑
             </Button>
           </DialogFooter>
@@ -823,7 +794,7 @@ export default function PlatformLinksPage() {
           <DialogHeader>
             <DialogTitle>同步平台数据</DialogTitle>
             <DialogDescription>
-              将从所有已绑定平台同步最新的粉丝数据和直播数据
+              从已绑定平台同步最新的粉丝数据和直播数据
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -831,7 +802,7 @@ export default function PlatformLinksPage() {
               {douyinAccounts.length > 0 && (
                 <div className="flex items-center justify-between p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                    <div className={`w-8 h-8 bg-gradient-to-br ${getPlatformInfo('douyin').gradient} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>
                       抖
                     </div>
                     <span>抖音</span>
@@ -845,7 +816,7 @@ export default function PlatformLinksPage() {
               {videoAccounts.length > 0 && (
                 <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                    <div className={`w-8 h-8 bg-gradient-to-br ${getPlatformInfo('video').gradient} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>
                       视
                     </div>
                     <span>视频号</span>
@@ -867,7 +838,10 @@ export default function PlatformLinksPage() {
             <Button variant="outline" onClick={() => setSyncDialogOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSync} disabled={syncing || (douyinAccounts.length === 0 && videoAccounts.length === 0)}>
+            <Button 
+              onClick={handleSync} 
+              disabled={syncing || (douyinAccounts.length === 0 && videoAccounts.length === 0)}
+            >
               {syncing ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
