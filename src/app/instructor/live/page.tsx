@@ -42,7 +42,7 @@ import {
   BookOpen,
   Trash2,
   ChevronRight,
-  Megaphone
+  Megaphone,
 } from 'lucide-react';
 
 interface LivePlan {
@@ -57,7 +57,6 @@ interface LivePlan {
 }
 
 export default function LiveManagementPage() {
-  // 直播计划列表
   const [livePlans, setLivePlans] = useState<LivePlan[]>([
     {
       id: 'LP001',
@@ -111,7 +110,6 @@ export default function LiveManagementPage() {
     },
   ]);
 
-  // 添加计划弹窗
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -121,7 +119,6 @@ export default function LiveManagementPage() {
     time: '',
   });
 
-  // 课程列表（模拟）
   const courses = [
     { id: 'C001', name: 'Python 从入门到精通', price: 299 },
     { id: 'C002', name: 'React 实战课程', price: 399 },
@@ -130,23 +127,21 @@ export default function LiveManagementPage() {
     { id: 'C005', name: 'Vue3 实战课程', price: 299 },
   ];
 
-  // 平台信息
   const getPlatformInfo = (platform: string) => {
     switch (platform) {
       case 'douyin':
-        return { name: '抖音', color: 'bg-pink-500', gradient: 'from-pink-500 to-rose-500' };
+        return { name: '抖音', gradient: 'from-pink-500 to-rose-500' };
       case 'video':
-        return { name: '视频号', color: 'bg-green-500', gradient: 'from-green-500 to-emerald-500' };
+        return { name: '视频号', gradient: 'from-green-500 to-emerald-500' };
       case 'kuaishou':
-        return { name: '快手', color: 'bg-purple-500', gradient: 'from-purple-500 to-violet-500' };
+        return { name: '快手', gradient: 'from-purple-500 to-violet-500' };
       case 'xiaohongshu':
-        return { name: '小红书', color: 'bg-red-500', gradient: 'from-red-500 to-pink-500' };
+        return { name: '小红书', gradient: 'from-red-500 to-pink-500' };
       default:
-        return { name: platform, color: 'bg-gray-500', gradient: 'from-gray-500 to-gray-600' };
+        return { name: platform, gradient: 'from-gray-500 to-gray-600' };
     }
   };
 
-  // 获取状态标签
   const getStatusBadge = (status: LivePlan['status']) => {
     switch (status) {
       case 'today':
@@ -158,10 +153,9 @@ export default function LiveManagementPage() {
     }
   };
 
-  // 添加直播计划
   const handleAddPlan = () => {
     if (formData.title && formData.course && formData.platform && formData.date && formData.time) {
-      const course = courses.find(c => c.id === formData.course);
+      const course = courses.find((c) => c.id === formData.course);
       const newPlan: LivePlan = {
         id: `LP${String(livePlans.length + 1).padStart(3, '0')}`,
         title: formData.title,
@@ -178,32 +172,30 @@ export default function LiveManagementPage() {
     }
   };
 
-  // 删除计划
   const handleDelete = (id: string) => {
-    setLivePlans(livePlans.filter(p => p.id !== id));
+    setLivePlans(livePlans.filter((p) => p.id !== id));
   };
 
-  // 统计
   const stats = {
     total: livePlans.length,
-    today: livePlans.filter(p => p.status === 'today').length,
-    upcoming: livePlans.filter(p => p.status === 'upcoming').length,
-    ended: livePlans.filter(p => p.status === 'ended').length,
+    today: livePlans.filter((p) => p.status === 'today').length,
+    upcoming: livePlans.filter((p) => p.status === 'upcoming').length,
+    ended: livePlans.filter((p) => p.status === 'ended').length,
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* 顶部导航 */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/instructor" className="text-muted-foreground hover:text-foreground">
               <ChevronRight className="w-5 h-5 rotate-180" />
             </Link>
-              <div>
-                <h1 className="text-xl font-semibold">公域直播</h1>
-                <p className="text-sm text-muted-foreground">规划直播计划，挂载课程链接到抖音/视频号/快手/小红书</p>
-              </div>
+            <div>
+              <h1 className="text-xl font-semibold">公域直播</h1>
+              <p className="text-sm text-muted-foreground">
+                规划直播计划，挂载课程链接到抖音/视频号/快手/小红书
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -232,9 +224,7 @@ export default function LiveManagementPage() {
                     <Megaphone className="w-5 h-5 text-blue-500" />
                     添加直播计划
                   </DialogTitle>
-                  <DialogDescription>
-                    规划您的直播安排，选择要挂载的课程
-                  </DialogDescription>
+                  <DialogDescription>规划您的直播安排，选择要挂载的课程</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -247,7 +237,10 @@ export default function LiveManagementPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>选择平台</Label>
-                    <Select value={formData.platform} onValueChange={(v) => setFormData({ ...formData, platform: v })}>
+                    <Select
+                      value={formData.platform}
+                      onValueChange={(v) => setFormData({ ...formData, platform: v })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="请选择直播平台" />
                       </SelectTrigger>
@@ -281,7 +274,10 @@ export default function LiveManagementPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>挂载课程</Label>
-                    <Select value={formData.course} onValueChange={(v) => setFormData({ ...formData, course: v })}>
+                    <Select
+                      value={formData.course}
+                      onValueChange={(v) => setFormData({ ...formData, course: v })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="请选择要挂载的课程" />
                       </SelectTrigger>
@@ -317,9 +313,7 @@ export default function LiveManagementPage() {
                   <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
                     取消
                   </Button>
-                  <Button onClick={handleAddPlan}>
-                    添加计划
-                  </Button>
+                  <Button onClick={handleAddPlan}>添加计划</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -328,7 +322,6 @@ export default function LiveManagementPage() {
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4">
@@ -376,16 +369,13 @@ export default function LiveManagementPage() {
           </Card>
         </div>
 
-        {/* 直播计划列表 */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Megaphone className="w-5 h-5 text-blue-500" />
               直播计划
             </CardTitle>
-            <CardDescription>
-              规划您的直播安排，创建后前往「多平台对接」生成挂载链接
-            </CardDescription>
+            <CardDescription>规划您的直播安排，创建后前往「多平台对接」生成挂载链接</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -406,7 +396,9 @@ export default function LiveManagementPage() {
                     <TableRow key={plan.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${platformInfo.gradient} flex items-center justify-center`}>
+                          <div
+                            className={`w-10 h-10 rounded-lg bg-gradient-to-br ${platformInfo.gradient} flex items-center justify-center`}
+                          >
                             <Video className="w-5 h-5 text-white" />
                           </div>
                           <div>
@@ -416,9 +408,7 @@ export default function LiveManagementPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={platformInfo.color.replace('bg-', 'border-').replace('500', '500 text-')}>
-                          {platformInfo.name}
-                        </Badge>
+                        <Badge variant="outline">{platformInfo.name}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -467,7 +457,6 @@ export default function LiveManagementPage() {
           </CardContent>
         </Card>
 
-        {/* 使用说明 */}
         <Card className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
