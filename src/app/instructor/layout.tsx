@@ -18,7 +18,8 @@ import {
   HelpCircle,
   Shield,
   Link2,
-  UserCircle
+  UserCircle,
+  GraduationCap
 } from 'lucide-react';
 
 const instructorNavItems = [
@@ -41,6 +42,11 @@ const instructorNavItems = [
     title: '直播管理',
     href: '/instructor/live',
     icon: Video,
+  },
+  {
+    title: '私域课堂',
+    href: '/instructor/classroom',
+    icon: GraduationCap,
   },
   {
     title: '多平台对接',
