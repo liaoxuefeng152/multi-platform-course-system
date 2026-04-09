@@ -19,7 +19,8 @@ import {
   Shield,
   Link2,
   UserCircle,
-  GraduationCap
+  GraduationCap,
+  Radio
 } from 'lucide-react';
 
 const instructorNavItems = [
@@ -39,9 +40,9 @@ const instructorNavItems = [
     icon: BookOpen,
   },
   {
-    title: '直播管理',
+    title: '公域直播',
     href: '/instructor/live',
-    icon: Video,
+    icon: Radio,
   },
   {
     title: '私域课堂',
