@@ -710,6 +710,116 @@ export default function PlatformLinksPage() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* 快手挂载入口 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('kuaishou').gradient}`} />
+                    快手挂载
+                  </CardTitle>
+                  <CardDescription>
+                    选择直播并关联课程进行挂载
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>选择快手直播</Label>
+                    <Select value={selectedLive} onValueChange={setSelectedLive}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择快手直播" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {lives.map((live) => (
+                          <SelectItem key={live.id} value={live.id}>
+                            {live.title} - {live.time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>选择要挂载的课程</Label>
+                    <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择要挂载的课程" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.title} - ¥{course.price}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleMountCourse}
+                    disabled={!selectedCourse || !selectedLive}
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    关联挂载
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* 小红书挂载入口 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getPlatformInfo('xiaohongshu').gradient}`} />
+                    小红书挂载
+                  </CardTitle>
+                  <CardDescription>
+                    选择直播并关联课程进行挂载
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>选择小红书直播</Label>
+                    <Select value={selectedLive} onValueChange={setSelectedLive}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择小红书直播" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {lives.map((live) => (
+                          <SelectItem key={live.id} value={live.id}>
+                            {live.title} - {live.time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>选择要挂载的课程</Label>
+                    <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择要挂载的课程" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.title} - ¥{course.price}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleMountCourse}
+                    disabled={!selectedCourse || !selectedLive}
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    关联挂载
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
 
             {/* 已挂载课程总览 */}
@@ -742,7 +852,11 @@ export default function PlatformLinksPage() {
                             className={
                               course.platform === '抖音'
                                 ? 'border-pink-500 text-pink-500'
-                                : 'border-green-500 text-green-500'
+                                : course.platform === '视频号'
+                                ? 'border-green-500 text-green-500'
+                                : course.platform === '快手'
+                                ? 'border-purple-500 text-purple-500'
+                                : 'border-red-500 text-red-500'
                             }
                           >
                             {course.platform}
