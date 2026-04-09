@@ -200,16 +200,23 @@ export default function LiveManagementPage() {
             <Link href="/instructor" className="text-muted-foreground hover:text-foreground">
               <ChevronRight className="w-5 h-5 rotate-180" />
             </Link>
-            <div>
-              <h1 className="text-xl font-semibold">直播管理</h1>
-              <p className="text-sm text-muted-foreground">规划直播计划，挂载课程链接</p>
+              <div>
+                <h1 className="text-xl font-semibold">公域直播</h1>
+                <p className="text-sm text-muted-foreground">规划直播计划，挂载课程链接到抖音/视频号/快手/小红书</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" asChild>
               <Link href="/instructor/platforms">
                 <Link2 className="w-4 h-4 mr-2" />
-                去生成挂载链接
+                前往多平台对接
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/instructor/classroom">
+                <Video className="w-4 h-4 mr-2" />
+                私域课堂
               </Link>
             </Button>
             <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
