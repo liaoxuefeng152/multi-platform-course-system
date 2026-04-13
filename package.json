@@ -84,7 +84,7 @@
     "shadcn": "latest",
     "tailwindcss": "^4",
     "tsup": "^8.3.5",
-    "tsx": "^4.19.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   },
   "packageManager": "pnpm@9.0.0",
