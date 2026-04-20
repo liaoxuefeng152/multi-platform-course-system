@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -17,13 +16,28 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Save, X, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Upload, Save, X, Plus, ArrowLeft, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface CourseFormData {
+  title: string;
+  category: string;
+  type: string;
+  description: string;
+  price: number;
+  isFree: boolean;
+  validity: string;
+  validityDays: number;
+  allowDownload: boolean;
+  coverImage: File | null;
+  coverKey: string | null;
+}
 
 export default function CreateCoursePage() {
   const router = useRouter();
-  const [courseType, setCourseType] = useState('video');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const [courseData, setCourseData] = useState({
+  const [courseData, setCourseData] = useState<CourseFormData>({
     title: '',
     category: '',
     type: 'video',
@@ -33,29 +47,113 @@ export default function CreateCoursePage() {
     validity: 'permanent',
     validityDays: 0,
     allowDownload: false,
-    coverImage: null as File | null,
-    chapters: [] as any[],
+    coverImage: null,
+    coverKey: null,
   });
 
   const [chapters, setChapters] = useState([
     {
       id: 1,
       title: '第一章',
-      sections: [
-        { id: 1, title: '', type: 'video', file: null, duration: 0 },
-      ],
+      sections: [{ id: 1, title: '', type: 'video', file: null, duration: 0 }],
     },
   ]);
 
-  const handleSave = () => {
-    console.log('保存课程:', courseData, chapters);
-    // TODO: 实现保存逻辑
+  // 获取当前用户信息
+  const getCurrentUser = () => {
+    if (typeof window === 'undefined') return null;
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const decoded = JSON.parse(atob(token));
+      return decoded;
+    } catch {
+      return null;
+    }
   };
 
-  const handleSubmit = () => {
-    console.log('提交审核:', courseData, chapters);
-    // TODO: 实现提交审核逻辑
-    router.push('/instructor/courses');
+  // 上传封面图片
+  const uploadCover = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload/cover', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      if (result.code === 200) {
+        return result.data.key;
+      }
+      throw new Error(result.message || '上传失败');
+    } catch (error) {
+      console.error('封面上传失败:', error);
+      return null;
+    }
+  };
+
+  // 保存课程
+  const handleSave = async () => {
+    if (!courseData.title) {
+      toast.error('请填写课程标题');
+      return;
+    }
+    if (!courseData.category) {
+      toast.error('请选择课程分类');
+      return;
+    }
+    if (!courseData.isFree && courseData.price <= 0) {
+      toast.error('请填写课程价格');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 如果有封面，先上传
+      let coverKey = courseData.coverKey;
+      if (courseData.coverImage && !coverKey) {
+        coverKey = await uploadCover(courseData.coverImage);
+      }
+
+      // 获取当前用户
+      const user = getCurrentUser();
+      
+      const response = await fetch('/api/instructor/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.userId,
+          title: courseData.title,
+          category: courseData.category,
+          type: courseData.type,
+          coverKey,
+          price: courseData.isFree ? 0 : Math.round(courseData.price * 100), // 转换为分
+          description: courseData.description,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.code === 200) {
+        toast.success('保存成功');
+        router.push('/instructor/courses');
+      } else {
+        toast.error(result.message || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存课程失败:', error);
+      toast.error('保存失败，请重试');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 提交审核
+  const handleSubmit = async () => {
+    await handleSave();
+    // 提交审核逻辑可以后续扩展
   };
 
   const addChapter = () => {
@@ -79,13 +177,7 @@ export default function CreateCoursePage() {
             ...chapter,
             sections: [
               ...chapter.sections,
-              {
-                id: chapter.sections.length + 1,
-                title: '',
-                type: 'video',
-                file: null,
-                duration: 0,
-              },
+              { id: chapter.sections.length + 1, title: '', type: 'video', file: null, duration: 0 },
             ],
           };
         }
@@ -111,25 +203,22 @@ export default function CreateCoursePage() {
   const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 验证文件类型
       if (!file.type.startsWith('image/')) {
-        alert('请上传图片文件（JPG、PNG 格式）');
+        toast.error('请上传图片文件（JPG、PNG 格式）');
         return;
       }
-      // 验证文件大小（限制 5MB）
       if (file.size > 5 * 1024 * 1024) {
-        alert('图片大小不能超过 5MB');
+        toast.error('图片大小不能超过 5MB');
         return;
       }
-      setCourseData({ ...courseData, coverImage: file });
-      // 创建预览 URL
+      setCourseData({ ...courseData, coverImage: file, coverKey: null });
       const previewUrl = URL.createObjectURL(file);
       setCoverPreview(previewUrl);
     }
   };
 
   const handleRemoveCover = () => {
-    setCourseData({ ...courseData, coverImage: null });
+    setCourseData({ ...courseData, coverImage: null, coverKey: null });
     if (coverPreview) {
       URL.revokeObjectURL(coverPreview);
       setCoverPreview(null);
@@ -145,11 +234,12 @@ export default function CreateCoursePage() {
           返回
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleSave}>
-            <Save className="w-4 h-4 mr-2" />
+          <Button variant="outline" onClick={handleSave} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             保存草稿
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             提交审核
           </Button>
         </div>
@@ -174,8 +264,8 @@ export default function CreateCoursePage() {
               <div className="space-y-2">
                 <Label>课程类型 *</Label>
                 <Select
-                  value={courseType}
-                  onValueChange={(value) => setCourseType(value)}
+                  value={courseData.type}
+                  onValueChange={(value) => setCourseData({ ...courseData, type: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="选择课程类型" />
@@ -195,16 +285,17 @@ export default function CreateCoursePage() {
                 <Input
                   placeholder="请输入课程标题"
                   value={courseData.title}
-                  onChange={(e) =>
-                    setCourseData({ ...courseData, title: e.target.value })
-                  }
+                  onChange={(e) => setCourseData({ ...courseData, title: e.target.value })}
                 />
               </div>
 
               {/* 课程分类 */}
               <div className="space-y-2">
                 <Label>课程分类 *</Label>
-                <Select>
+                <Select
+                  value={courseData.category}
+                  onValueChange={(value) => setCourseData({ ...courseData, category: value })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="选择课程分类" />
                   </SelectTrigger>
@@ -212,6 +303,8 @@ export default function CreateCoursePage() {
                     <SelectItem value="skill">技能培训</SelectItem>
                     <SelectItem value="career">职场提升</SelectItem>
                     <SelectItem value="hobby">兴趣爱好</SelectItem>
+                    <SelectItem value="programming">编程开发</SelectItem>
+                    <SelectItem value="business">商业营销</SelectItem>
                     <SelectItem value="other">其他</SelectItem>
                   </SelectContent>
                 </Select>
@@ -229,25 +322,16 @@ export default function CreateCoursePage() {
                 />
                 <div
                   onClick={() => document.getElementById('cover-upload')?.click()}
-                  className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer relative ${
-                    coverPreview ? 'p-4' : 'p-8'
-                  }`}
+                  className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                 >
                   {coverPreview ? (
                     <>
-                      <img
-                        src={coverPreview}
-                        alt="课程封面预览"
-                        className="max-h-48 rounded-lg object-cover"
-                      />
+                      <img src={coverPreview} alt="课程封面预览" className="max-h-48 rounded-lg object-cover" />
                       <Button
                         variant="destructive"
                         size="sm"
                         className="mt-4"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveCover();
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleRemoveCover(); }}
                       >
                         <X className="w-4 h-4 mr-2" />
                         删除封面
@@ -256,12 +340,8 @@ export default function CreateCoursePage() {
                   ) : (
                     <>
                       <Upload className="w-12 h-12 text-gray-400 mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        点击上传或拖拽文件到此处
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        支持 JPG、PNG 格式，建议尺寸 800x600px
-                      </p>
+                      <p className="text-sm text-muted-foreground">点击上传或拖拽文件到此处</p>
+                      <p className="text-xs text-muted-foreground mt-1">支持 JPG、PNG 格式，建议尺寸 800x600px</p>
                     </>
                   )}
                 </div>
@@ -269,14 +349,12 @@ export default function CreateCoursePage() {
 
               {/* 课程简介 */}
               <div className="space-y-2">
-                <Label>课程简介 *</Label>
+                <Label>课程简介</Label>
                 <Textarea
                   placeholder="请输入课程简介，简要描述课程内容和学习目标"
                   className="min-h-[120px]"
                   value={courseData.description}
-                  onChange={(e) =>
-                    setCourseData({ ...courseData, description: e.target.value })
-                  }
+                  onChange={(e) => setCourseData({ ...courseData, description: e.target.value })}
                 />
               </div>
             </CardContent>
@@ -295,92 +373,68 @@ export default function CreateCoursePage() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {chapters.map((chapter, chapterIndex) => (
-                <Card key={chapter.id} className="border-2">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
+            <CardContent className="space-y-4">
+              {chapters.map((chapter) => (
+                <Card key={chapter.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
                       <Input
+                        placeholder="章节标题"
                         value={chapter.title}
                         onChange={(e) => {
                           const newChapters = [...chapters];
-                          newChapters[chapterIndex].title = e.target.value;
+                          const idx = newChapters.findIndex((c) => c.id === chapter.id);
+                          newChapters[idx].title = e.target.value;
                           setChapters(newChapters);
                         }}
-                        className="font-semibold"
+                        className="flex-1"
                       />
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => removeChapter(chapter.id)}
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <X className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {chapter.sections.map((section: any, sectionIndex: number) => (
-                      <div
-                        key={section.id}
-                        className="flex gap-2 items-start p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                      >
-                        <div className="flex-1 space-y-2">
-                          <Input
-                            placeholder="小节标题"
-                            value={section.title}
-                            onChange={(e) => {
-                              const newChapters = [...chapters];
-                              newChapters[chapterIndex].sections[sectionIndex].title =
-                                e.target.value;
-                              setChapters(newChapters);
-                            }}
-                          />
-                          <div className="flex gap-2">
-                            <Select
-                              value={section.type}
-                              onValueChange={(value) => {
-                                const newChapters = [...chapters];
-                                newChapters[chapterIndex].sections[sectionIndex].type =
-                                  value;
-                                setChapters(newChapters);
-                              }}
-                            >
-                              <SelectTrigger className="w-[120px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="video">视频</SelectItem>
-                                <SelectItem value="audio">音频</SelectItem>
-                                <SelectItem value="text">图文</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <div className="flex-1 border-2 border-dashed rounded-lg p-2 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                              <p className="text-sm text-muted-foreground">
-                                {section.type === 'video'
-                                  ? '上传视频'
-                                  : section.type === 'audio'
-                                  ? '上传音频'
-                                  : '上传图文'}
-                              </p>
-                            </div>
-                          </div>
+                  <CardContent className="space-y-2">
+                    {chapter.sections.map((section) => (
+                      <div key={section.id} className="flex items-center gap-2">
+                        <Select
+                          value={section.type}
+                          onValueChange={(value) => {
+                            const newChapters = [...chapters];
+                            const cIdx = newChapters.findIndex((c) => c.id === chapter.id);
+                            const sIdx = newChapters[cIdx].sections.findIndex((s: any) => s.id === section.id);
+                            newChapters[cIdx].sections[sIdx].type = value;
+                            setChapters(newChapters);
+                          }}
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="video">视频</SelectItem>
+                            <SelectItem value="audio">音频</SelectItem>
+                            <SelectItem value="text">图文</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex-1 border-2 border-dashed rounded-lg p-2 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                          <p className="text-sm text-muted-foreground">
+                            {section.type === 'video' ? '上传视频' : section.type === 'audio' ? '上传音频' : '上传图文'}
+                          </p>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() =>
-                            removeSection(chapter.id, section.id)
-                          }
+                          onClick={() => removeSection(chapter.id, section.id)}
                         >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                     ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addSection(chapter.id)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => addSection(chapter.id)}>
                       <Plus className="w-4 h-4 mr-2" />
                       添加小节
                     </Button>
@@ -398,91 +452,28 @@ export default function CreateCoursePage() {
               <CardTitle>价格设置</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* 免费/付费 */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <div className="font-medium">免费课程</div>
-                  <div className="text-sm text-muted-foreground">
-                    设置为免费后，所有用户无需购买即可学习
-                  </div>
+                  <div className="text-sm text-muted-foreground">设置为免费后，所有用户无需购买即可学习</div>
                 </div>
                 <Switch
                   checked={courseData.isFree}
-                  onCheckedChange={(checked) =>
-                    setCourseData({ ...courseData, isFree: checked })
-                  }
+                  onCheckedChange={(checked) => setCourseData({ ...courseData, isFree: checked })}
                 />
               </div>
 
-              {/* 价格 */}
               {!courseData.isFree && (
                 <div className="space-y-2">
                   <Label>课程价格 (元) *</Label>
                   <Input
                     type="number"
                     placeholder="请输入课程价格"
-                    value={courseData.price}
-                    onChange={(e) =>
-                      setCourseData({
-                        ...courseData,
-                        price: parseFloat(e.target.value),
-                      })
-                    }
+                    value={courseData.price || ''}
+                    onChange={(e) => setCourseData({ ...courseData, price: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
               )}
-
-              {/* 有效期 */}
-              <div className="space-y-2">
-                <Label>课程有效期</Label>
-                <Select
-                  value={courseData.validity}
-                  onValueChange={(value) =>
-                    setCourseData({ ...courseData, validity: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="permanent">永久有效</SelectItem>
-                    <SelectItem value="fixed">固定时长</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {courseData.validity === 'fixed' && (
-                <div className="space-y-2">
-                  <Label>有效天数 *</Label>
-                  <Input
-                    type="number"
-                    placeholder="请输入有效天数"
-                    value={courseData.validityDays}
-                    onChange={(e) =>
-                      setCourseData({
-                        ...courseData,
-                        validityDays: parseInt(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-              )}
-
-              {/* 允许下载 */}
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <div className="font-medium">允许下载</div>
-                  <div className="text-sm text-muted-foreground">
-                    允许学员下载课程内容到本地（可能影响内容安全）
-                  </div>
-                </div>
-                <Switch
-                  checked={courseData.allowDownload}
-                  onCheckedChange={(checked) =>
-                    setCourseData({ ...courseData, allowDownload: checked })
-                  }
-                />
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -493,45 +484,27 @@ export default function CreateCoursePage() {
             <CardHeader>
               <CardTitle>课程预览</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* 课程封面 */}
-              <div className="aspect-video bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg flex items-center justify-center">
-                <p className="text-muted-foreground">课程封面预览</p>
-              </div>
-
-              {/* 课程信息 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{courseType === 'video' ? '视频课' : courseType === 'audio' ? '音频课' : courseType === 'text' ? '图文课' : '直播课'}</Badge>
-                  {courseData.isFree && <Badge variant="default">免费</Badge>}
-                </div>
-                <h2 className="text-2xl font-bold">{courseData.title || '课程标题'}</h2>
-                <p className="text-muted-foreground">{courseData.description || '课程简介'}</p>
-              </div>
-
-              {/* 章节目录 */}
+            <CardContent>
               <div className="space-y-4">
-                <h3 className="font-semibold">课程目录</h3>
-                {chapters.map((chapter) => (
-                  <div key={chapter.id} className="space-y-2">
-                    <h4 className="font-medium">{chapter.title}</h4>
-                    {chapter.sections.map((section: any) => (
-                      <div
-                        key={section.id}
-                        className="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-gray-50 dark:bg-gray-800 rounded"
-                      >
-                        <span>{section.title || '未命名小节'}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {section.type === 'video'
-                            ? '视频'
-                            : section.type === 'audio'
-                            ? '音频'
-                            : '图文'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  {coverPreview ? (
+                    <img src={coverPreview} alt="预览" className="max-w-full max-h-full object-contain rounded-lg" />
+                  ) : (
+                    <p className="text-gray-400">暂无封面预览</p>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">{courseData.title || '课程标题'}</h3>
+                  <p className="text-muted-foreground mt-1">{courseData.description || '暂无课程简介'}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                    {courseData.category || '未分类'}
+                  </span>
+                  <span className="font-semibold text-lg">
+                    {courseData.isFree ? '免费' : `¥${courseData.price}`}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>

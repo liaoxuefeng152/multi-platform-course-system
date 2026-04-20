@@ -1,4 +1,50 @@
-# 项目上下文
+# 项目上下文## API 端点清单
+
+### 认证相关
+- `POST /api/auth/login` - 登录/自动注册
+- `POST /api/auth/register` - 注册
+- `POST /api/auth/send-code` - 发送验证码
+
+### 讲师端 API
+- `GET/POST /api/instructor/courses` - 课程列表/创建课程
+- `GET /api/instructor/orders` - 订单列表
+- `GET /api/instructor/students` - 学员列表
+- `GET /api/instructor/platforms/bindings` - 平台绑定列表
+- `GET /api/instructor/public-lives` - 公域直播
+- `GET /api/instructor/classroom/lives` - 私域课堂
+
+### 文件上传
+- `POST /api/upload` - 通用文件上传
+- `POST /api/upload/avatar` - 头像上传
+- `POST /api/upload/cover` - 课程封面上传
+- `POST /api/fetch-url` - URL 内容抓取
+
+## 常见问题
+
+### 数据库迁移
+如果数据库表未创建，需要执行：
+```bash
+# 确保 drizzle.config.ts 存在
+# 使用 exec_sql 工具执行建表 SQL
+```
+
+### 外键约束错误
+创建课程时需要确保 `userId` 存在于 `users` 表中。注册用户会自动创建 users 记录。
+
+### 前端用户信息
+前端通过 localStorage 中的 token 获取用户信息，token 是 base64 编码的 JSON，包含 userId、phone、role 等字段。
+
+## 技术栈
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript 5
+- shadcn/ui (基于 Radix UI)
+- Tailwind CSS 4
+- Supabase (PostgreSQL)
+- S3 兼容对象存储
+- Lucide React (图标)
+- qrcode.react (二维码生成)
 
 ### 版本技术栈
 
@@ -80,6 +126,18 @@
 ### 数据库 (Supabase PostgreSQL)
 - **表结构**: `src/storage/database/shared/schema.ts`
 - **客户端**: `src/storage/database/supabase-client.ts`
+- **配置文件**: `src/storage/database/drizzle.config.ts`
+- **数据库表**:
+  - `users` - 用户表（讲师/管理员）
+  - `instructor_profiles` - 讲师认证信息
+  - `courses` - 课程表
+  - `public_live_plans` - 公域直播方案
+  - `private_classrooms` - 私域课堂
+  - `platform_bindings` - 平台绑定（抖音/视频号等）
+  - `students` - 学员表
+  - `orders` - 订单表
+  - `student_courses` - 学员课程关联
+  - `qrcode_records` - 二维码记录
 - **使用方式**:
   ```typescript
   import { getSupabaseClient } from '@/storage/database/supabase-client';

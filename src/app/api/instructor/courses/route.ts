@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, category, cover, coverKey, price, description } = body;
+    const { userId, title, category, cover, coverKey, price, description } = body;
 
     // 验证必填项
     if (!title || !category || !price) {
@@ -118,17 +118,24 @@ export async function POST(request: NextRequest) {
     const client = getSupabaseClient();
 
     // 创建课程
+    const insertData: Record<string, unknown> = {
+      title,
+      category,
+      cover_image: cover,
+      cover_key: coverKey,
+      price,
+      description,
+      status: 'draft'
+    };
+
+    // 如果传入了 userId，则关联到指定用户
+    if (userId) {
+      insertData.user_id = userId;
+    }
+
     const { data: newCourse, error } = await client
       .from('courses')
-      .insert({
-        title,
-        category,
-        cover_image: cover,
-        cover_key: coverKey,
-        price,
-        description,
-        status: 'draft'
-      })
+      .insert(insertData)
       .select()
       .single();
 

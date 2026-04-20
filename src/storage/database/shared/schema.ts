@@ -9,6 +9,8 @@ export const users = pgTable(
     phone: varchar("phone", { length: 20 }).notNull().unique(),
     password: varchar("password", { length: 255 }).notNull(),
     role: varchar("role", { length: 20 }).notNull().default("instructor"), // instructor | admin
+    nickname: varchar("nickname", { length: 50 }),
+    avatar: text("avatar"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
@@ -48,14 +50,16 @@ export const courses = pgTable(
     title: varchar("title", { length: 200 }).notNull(),
     description: text("description"),
     cover_image: text("cover_image"),
-    cover_key: varchar("cover_key", { length: 500 }), // 对象存储 key
-    price: integer("price").notNull().default(0), // 价格（分）
-    original_price: integer("original_price"), // 原价（分）
+    cover_key: text("cover_key"),
+    price: integer("price").notNull().default(0),
+    original_price: integer("original_price"),
     category: varchar("category", { length: 50 }),
-    lessons_count: integer("lessons_count").default(0),
-    students_count: integer("students_count").default(0),
-    rating: integer("rating").default(0), // 评分（1-5）
-    status: varchar("status", { length: 20 }).notNull().default("draft"), // draft | published | offline
+    type: varchar("type", { length: 20 }).notNull().default("video"), // video | audio | text | live
+    lessons_count: integer("lessons_count").notNull().default(0),
+    students_count: integer("students_count").notNull().default(0),
+    rating: integer("rating").notNull().default(0),
+    status: varchar("status", { length: 20 }).notNull().default("draft"), // draft | pending | approved | rejected | published | offline
+    rejection_reason: text("rejection_reason"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
@@ -63,35 +67,24 @@ export const courses = pgTable(
     index("courses_user_id_idx").on(table.user_id),
     index("courses_status_idx").on(table.status),
     index("courses_category_idx").on(table.category),
-    index("courses_created_at_idx").on(table.created_at),
   ]
 );
 
-// ==================== 公域直播计划表 ====================
+// ==================== 公域直播方案表 ====================
 export const publicLivePlans = pgTable(
   "public_live_plans",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
-    course_id: varchar("course_id", { length: 36 }).references(() => courses.id),
-    platform: varchar("platform", { length: 20 }).notNull(), // douyin | video | kuaishou | xiaohongshu
-    platform_account_id: varchar("platform_account_id", { length: 50 }),
-    title: varchar("title", { length: 200 }).notNull(),
-    description: text("description"),
-    cover_image: text("cover_image"),
-    scheduled_at: timestamp("scheduled_at", { withTimezone: true }).notNull(),
-    status: varchar("status", { length: 20 }).notNull().default("upcoming"), // upcoming | live | ended | cancelled
-    viewer_count: integer("viewer_count").default(0),
-    sales_count: integer("sales_count").default(0),
-    sales_amount: integer("sales_amount").default(0),
+    course_id: varchar("course_id", { length: 36 }).notNull().references(() => courses.id),
+    platform: varchar("platform", { length: 20 }).notNull(), // douyin | wechat | kuaishou | xiaohongshu
+    room_id: varchar("room_id", { length: 100 }),
+    status: varchar("status", { length: 20 }).notNull().default("inactive"), // inactive | active | expired
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
-    index("public_live_plans_user_id_idx").on(table.user_id),
+    index("public_live_plans_course_id_idx").on(table.course_id),
     index("public_live_plans_platform_idx").on(table.platform),
-    index("public_live_plans_status_idx").on(table.status),
-    index("public_live_plans_scheduled_at_idx").on(table.scheduled_at),
   ]
 );
 
@@ -100,25 +93,18 @@ export const privateClassrooms = pgTable(
   "private_classrooms",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
-    course_id: varchar("course_id", { length: 36 }).references(() => courses.id),
-    title: varchar("title", { length: 200 }).notNull(),
-    description: text("description"),
-    cover_image: text("cover_image"),
-    teacher_name: varchar("teacher_name", { length: 50 }),
-    scheduled_at: timestamp("scheduled_at", { withTimezone: true }),
-    duration: integer("duration").default(120), // 时长（分钟）
+    course_id: varchar("course_id", { length: 36 }).notNull().references(() => courses.id),
+    name: varchar("name", { length: 100 }).notNull(),
+    start_time: timestamp("start_time", { withTimezone: true }),
+    end_time: timestamp("end_time", { withTimezone: true }),
     status: varchar("status", { length: 20 }).notNull().default("scheduled"), // scheduled | live | ended | cancelled
-    students_count: integer("students_count").default(0),
-    viewer_count: integer("viewer_count").default(0),
-    replay_url: text("replay_url"),
+    max_students: integer("max_students"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
-    index("private_classrooms_user_id_idx").on(table.user_id),
+    index("private_classrooms_course_id_idx").on(table.course_id),
     index("private_classrooms_status_idx").on(table.status),
-    index("private_classrooms_scheduled_at_idx").on(table.scheduled_at),
   ]
 );
 
@@ -128,23 +114,19 @@ export const platformBindings = pgTable(
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
     user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
-    platform: varchar("platform", { length: 20 }).notNull(), // douyin | video | kuaishou | xiaohongshu
-    platform_account_id: varchar("platform_account_id", { length: 100 }),
-    platform_account_name: varchar("platform_account_name", { length: 100 }),
-    platform_avatar: text("platform_avatar"),
-    followers_count: integer("followers_count").default(0),
+    platform: varchar("platform", { length: 20 }).notNull(), // douyin | wechat | kuaishou | xiaohongshu
+    platform_user_id: varchar("platform_user_id", { length: 100 }),
+    platform_user_name: varchar("platform_user_name", { length: 100 }),
     access_token: text("access_token"),
     refresh_token: text("refresh_token"),
     token_expires_at: timestamp("token_expires_at", { withTimezone: true }),
-    status: varchar("status", { length: 20 }).notNull().default("active"), // active | expired | disabled
-    bound_at: timestamp("bound_at", { withTimezone: true }).defaultNow().notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | inactive | expired
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
     index("platform_bindings_user_id_idx").on(table.user_id),
     index("platform_bindings_platform_idx").on(table.platform),
-    index("platform_bindings_status_idx").on(table.status),
   ]
 );
 
@@ -153,21 +135,15 @@ export const students = pgTable(
   "students",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+    phone: varchar("phone", { length: 20 }).notNull().unique(),
     nickname: varchar("nickname", { length: 50 }),
-    phone: varchar("phone", { length: 20 }),
     avatar: text("avatar"),
-    source: varchar("source", { length: 50 }), // live | classroom | direct
-    total_courses: integer("total_courses").default(0),
-    total_amount: integer("total_amount").default(0), // 累计消费（分）
-    last_active_at: timestamp("last_active_at", { withTimezone: true }),
+    source: varchar("source", { length: 50 }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
-    index("students_user_id_idx").on(table.user_id),
     index("students_phone_idx").on(table.phone),
-    index("students_created_at_idx").on(table.created_at),
   ]
 );
 
@@ -176,30 +152,25 @@ export const orders = pgTable(
   "orders",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    order_no: varchar("order_no", { length: 50 }).notNull().unique(),
-    user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+    order_no: varchar("order_no", { length: 64 }).notNull().unique(),
     student_id: varchar("student_id", { length: 36 }).references(() => students.id),
     course_id: varchar("course_id", { length: 36 }).notNull().references(() => courses.id),
-    amount: integer("amount").notNull(), // 订单金额（分）
-    original_amount: integer("original_amount"), // 原价（分）
-    discount_amount: integer("discount_amount").default(0), // 优惠金额（分）
+    instructor_id: varchar("instructor_id", { length: 36 }).notNull().references(() => users.id),
+    amount: integer("amount").notNull(),
+    pay_amount: integer("pay_amount").notNull(),
+    platform_fee: integer("platform_fee").notNull().default(0),
     status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | paid | refunded | cancelled
-    payment_method: varchar("payment_method", { length: 20 }), // wechat | alipay
+    payment_method: varchar("payment_method", { length: 20 }),
     payment_time: timestamp("payment_time", { withTimezone: true }),
-    source: varchar("source", { length: 50 }), // live | classroom
-    source_id: varchar("source_id", { length: 36 }), // 直播ID或课堂ID
-    refund_time: timestamp("refund_time", { withTimezone: true }),
-    refund_reason: text("refund_reason"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
-    index("orders_user_id_idx").on(table.user_id),
+    index("orders_order_no_idx").on(table.order_no),
     index("orders_student_id_idx").on(table.student_id),
     index("orders_course_id_idx").on(table.course_id),
+    index("orders_instructor_id_idx").on(table.instructor_id),
     index("orders_status_idx").on(table.status),
-    index("orders_created_at_idx").on(table.created_at),
-    index("orders_order_no_idx").on(table.order_no),
   ]
 );
 
@@ -211,8 +182,10 @@ export const studentCourses = pgTable(
     student_id: varchar("student_id", { length: 36 }).notNull().references(() => students.id),
     course_id: varchar("course_id", { length: 36 }).notNull().references(() => courses.id),
     order_id: varchar("order_id", { length: 36 }).references(() => orders.id),
-    progress: integer("progress").default(0), // 学习进度（百分比）
-    status: varchar("status", { length: 20 }).notNull().default("active"), // active | completed | cancelled
+    progress: integer("progress").notNull().default(0),
+    validity_days: integer("validity_days"),
+    start_time: timestamp("start_time", { withTimezone: true }),
+    end_time: timestamp("end_time", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
@@ -222,20 +195,24 @@ export const studentCourses = pgTable(
   ]
 );
 
-// ==================== 二维码记录表（多平台授权） ====================
+// ==================== 二维码记录表 ====================
 export const qrcodeRecords = pgTable(
   "qrcode_records",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    qrcode_id: varchar("qrcode_id", { length: 100 }).notNull().unique(),
-    user_id: varchar("user_id", { length: 36 }).references(() => users.id),
+    user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+    course_id: varchar("course_id", { length: 36 }).references(() => courses.id),
     platform: varchar("platform", { length: 20 }).notNull(),
-    status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | scanned | authorized | expired
-    expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+    qrcode_url: text("qrcode_url").notNull(),
+    scene: varchar("scene", { length: 100 }),
+    expire_time: timestamp("expire_time", { withTimezone: true }),
+    scan_count: integer("scan_count").notNull().default(0),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
     index("qrcode_records_user_id_idx").on(table.user_id),
-    index("qrcode_records_status_idx").on(table.status),
+    index("qrcode_records_course_id_idx").on(table.course_id),
+    index("qrcode_records_platform_idx").on(table.platform),
   ]
 );
