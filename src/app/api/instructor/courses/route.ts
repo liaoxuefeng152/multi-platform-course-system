@@ -1,178 +1,135 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 模拟课程数据
-const courses = [
-  {
-    id: 'C001',
-    title: 'Python 从入门到精通',
-    cover: 'https://picsum.photos/seed/python/400/300',
-    type: 'video',
-    category: '编程',
-    price: 29900,
-    sales: 1256,
-    students: 1200,
-    status: 'approved',
-    validDays: 365,
-    allowDownload: true,
-    description: 'Python入门到精通完整课程',
-    chapters: [
-      { id: 'CH001', title: '第一章：环境搭建', lessons: 5 },
-      { id: 'CH002', title: '第二章：基础语法', lessons: 10 },
-      { id: 'CH003', title: '第三章：函数与模块', lessons: 8 }
-    ],
-    createdAt: '2024-01-01T08:00:00Z',
-    updatedAt: '2024-01-10T10:00:00Z'
-  },
-  {
-    id: 'C002',
-    title: 'React 实战课程',
-    cover: 'https://picsum.photos/seed/react/400/300',
-    type: 'video',
-    category: '前端',
-    price: 39900,
-    sales: 856,
-    students: 800,
-    status: 'approved',
-    validDays: 180,
-    allowDownload: false,
-    description: 'React从入门到实战',
-    chapters: [],
-    createdAt: '2024-01-05T08:00:00Z',
-    updatedAt: '2024-01-05T08:00:00Z'
-  },
-  {
-    id: 'C003',
-    title: 'TypeScript 深入浅出',
-    cover: 'https://picsum.photos/seed/ts/400/300',
-    type: 'video',
-    category: '前端',
-    price: 29900,
-    sales: 520,
-    students: 500,
-    status: 'pending',
-    validDays: 365,
-    allowDownload: true,
-    description: 'TypeScript系统学习',
-    chapters: [],
-    createdAt: '2024-01-10T08:00:00Z',
-    updatedAt: '2024-01-10T08:00:00Z'
-  },
-  {
-    id: 'C004',
-    title: 'Node.js 全栈开发',
-    cover: 'https://picsum.photos/seed/nodejs/400/300',
-    type: 'video',
-    category: '后端',
-    price: 49900,
-    sales: 320,
-    students: 300,
-    status: 'approved',
-    validDays: 365,
-    allowDownload: true,
-    description: 'Node.js全栈开发实战',
-    chapters: [],
-    createdAt: '2024-01-08T08:00:00Z',
-    updatedAt: '2024-01-08T08:00:00Z'
-  },
-  {
-    id: 'C005',
-    title: 'Vue3 实战课程',
-    cover: 'https://picsum.photos/seed/vue/400/300',
-    type: 'video',
-    category: '前端',
-    price: 29900,
-    sales: 680,
-    students: 650,
-    status: 'draft',
-    validDays: 180,
-    allowDownload: false,
-    description: 'Vue3从入门到实战',
-    chapters: [],
-    createdAt: '2024-01-12T08:00:00Z',
-    updatedAt: '2024-01-12T08:00:00Z'
-  }
-];
+interface Course {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  price: number;
+  original_price: number | null;
+  category: string | null;
+  lessons_count: number;
+  students_count: number;
+  rating: number;
+  status: string;
+  created_at: string;
+  updated_at: string | null;
+}
 
 // GET: 获取课程列表
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const page = parseInt(searchParams.get('page') || '1');
-  const pageSize = parseInt(searchParams.get('pageSize') || '10');
-  const type = searchParams.get('type');
-  const status = searchParams.get('status');
-  const keyword = searchParams.get('keyword');
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const type = searchParams.get('type');
+    const status = searchParams.get('status');
+    const keyword = searchParams.get('keyword');
 
-  // 过滤
-  let filtered = [...courses];
-  if (type) filtered = filtered.filter(c => c.type === type);
-  if (status) filtered = filtered.filter(c => c.status === status);
-  if (keyword) {
-    filtered = filtered.filter(c => 
-      c.title.toLowerCase().includes(keyword.toLowerCase())
+    const client = getSupabaseClient();
+
+    // 构建查询
+    let query = client.from('courses').select('*', { count: 'exact' });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (keyword) {
+      query = query.ilike('title', `%${keyword}%`);
+    }
+
+    query = query.order('created_at', { ascending: false });
+    query = query.range((page - 1) * pageSize, page * pageSize - 1);
+
+    const { data: courses, error, count } = await query;
+
+    if (error) throw new Error(`查询课程失败: ${error.message}`);
+
+    // 格式化返回数据
+    const list = (courses || []).map((course: Course) => ({
+      id: course.id,
+      title: course.title,
+      cover: course.cover_image,
+      type: 'video',
+      category: course.category,
+      price: course.price,
+      students: course.students_count,
+      status: course.status,
+      description: course.description,
+      createdAt: course.created_at,
+      updatedAt: course.updated_at
+    }));
+
+    return NextResponse.json({
+      code: 200,
+      message: 'success',
+      data: {
+        list,
+        pagination: {
+          page,
+          pageSize,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / pageSize)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('获取课程列表失败:', error);
+    return NextResponse.json(
+      { code: 500, message: '服务器错误', data: null },
+      { status: 500 }
     );
   }
-
-  // 分页
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const list = filtered.slice(start, end);
-
-  return NextResponse.json({
-    code: 200,
-    message: 'success',
-    data: {
-      list,
-      pagination: {
-        page,
-        pageSize,
-        total: filtered.length,
-        totalPages: Math.ceil(filtered.length / pageSize)
-      }
-    }
-  });
 }
 
 // POST: 创建课程
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, type, category, cover, price, validDays, description } = body;
+    const { title, category, cover, price, description } = body;
 
     // 验证必填项
-    if (!title || !type || !category || !price) {
+    if (!title || !category || !price) {
       return NextResponse.json(
         { code: 400, message: '请填写完整信息', data: null },
         { status: 400 }
       );
     }
 
-    // 创建课程
-    const newCourse = {
-      id: `C${Date.now()}`,
-      title,
-      cover: cover || `https://picsum.photos/seed/${Date.now()}/400/300`,
-      type,
-      category,
-      price,
-      sales: 0,
-      students: 0,
-      status: 'draft',
-      validDays: validDays || 365,
-      allowDownload: false,
-      description: description || '',
-      chapters: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    const client = getSupabaseClient();
 
-    courses.unshift(newCourse);
+    // 创建课程
+    const { data: newCourse, error } = await client
+      .from('courses')
+      .insert({
+        title,
+        category,
+        cover_image: cover,
+        price,
+        description,
+        status: 'draft'
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`创建课程失败: ${error.message}`);
 
     return NextResponse.json({
       code: 200,
       message: '创建成功',
-      data: newCourse
+      data: {
+        id: newCourse.id,
+        title: newCourse.title,
+        category: newCourse.category,
+        price: newCourse.price,
+        status: newCourse.status,
+        createdAt: newCourse.created_at
+      }
     });
   } catch (error) {
+    console.error('创建课程失败:', error);
     return NextResponse.json(
       { code: 500, message: '服务器错误', data: null },
       { status: 500 }

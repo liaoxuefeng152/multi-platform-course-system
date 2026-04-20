@@ -1,114 +1,120 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 模拟直播计划数据
-const livePlans = [
-  {
-    id: 'LP001',
-    title: 'Python 入门第一课',
-    courseId: 'C001',
-    courseName: 'Python 从入门到精通',
-    platform: 'douyin',
-    scheduledAt: '2024-01-20T11:00:00Z',
-    status: 'today',
-    links: [],
-    createdAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: 'LP002',
-    title: 'React 核心概念详解',
-    courseId: 'C002',
-    courseName: 'React 实战课程',
-    platform: 'video',
-    scheduledAt: '2024-01-22T12:00:00Z',
-    status: 'upcoming',
-    links: [],
-    createdAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: 'LP003',
-    title: 'TypeScript 进阶技巧',
-    courseId: 'C003',
-    courseName: 'TypeScript 深入浅出',
-    platform: 'kuaishou',
-    scheduledAt: '2024-01-25T11:30:00Z',
-    status: 'upcoming',
-    links: [],
-    createdAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: 'LP004',
-    title: 'Node.js 实战指南',
-    courseId: 'C004',
-    courseName: 'Node.js 全栈开发',
-    platform: 'xiaohongshu',
-    scheduledAt: '2024-01-28T12:00:00Z',
-    status: 'upcoming',
-    links: [],
-    createdAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: 'LP005',
-    title: 'Vue3 入门教程',
-    courseId: 'C005',
-    courseName: 'Vue3 实战课程',
-    platform: 'douyin',
-    scheduledAt: '2024-01-15T11:00:00Z',
-    status: 'ended',
-    links: ['https://v.douyin.com/xxx'],
-    createdAt: '2024-01-10T10:00:00Z'
-  }
-];
+interface PublicLivePlan {
+  id: string;
+  user_id: string;
+  course_id: string | null;
+  platform: string;
+  platform_account_id: string | null;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  scheduled_at: string;
+  status: string;
+  viewer_count: number;
+  sales_count: number;
+  sales_amount: number;
+  created_at: string;
+  updated_at: string | null;
+}
 
 // GET: 获取直播计划列表
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const status = searchParams.get('status');
-  const page = parseInt(searchParams.get('page') || '1');
-  const pageSize = parseInt(searchParams.get('pageSize') || '10');
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
 
-  // 过滤
-  let filtered = [...livePlans];
-  if (status) {
-    filtered = filtered.filter(p => p.status === status);
-  }
+    const client = getSupabaseClient();
 
-  // 分页
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const list = filtered.slice(start, end);
+    // 构建查询
+    let query = client.from('public_live_plans').select('*', { count: 'exact' });
 
-  // 统计
-  const stats = {
-    total: livePlans.length,
-    today: livePlans.filter(p => p.status === 'today').length,
-    upcoming: livePlans.filter(p => p.status === 'upcoming').length,
-    ended: livePlans.filter(p => p.status === 'ended').length
-  };
-
-  return NextResponse.json({
-    code: 200,
-    message: 'success',
-    data: {
-      list,
-      stats,
-      pagination: {
-        page,
-        pageSize,
-        total: filtered.length,
-        totalPages: Math.ceil(filtered.length / pageSize)
-      }
+    if (status) {
+      query = query.eq('status', status);
     }
-  });
+
+    query = query.order('scheduled_at', { ascending: false });
+    query = query.range((page - 1) * pageSize, page * pageSize - 1);
+
+    const { data: plans, error, count } = await query;
+
+    if (error) throw new Error(`查询直播计划失败: ${error.message}`);
+
+    // 获取统计数据
+    const { count: totalCount } = await client
+      .from('public_live_plans')
+      .select('*', { count: 'exact', head: true });
+
+    const today = new Date().toISOString().split('T')[0];
+    const { count: todayCount } = await client
+      .from('public_live_plans')
+      .select('*', { count: 'exact', head: true })
+      .gte('scheduled_at', `${today}T00:00:00`)
+      .lte('scheduled_at', `${today}T23:59:59`);
+
+    const { count: upcomingCount } = await client
+      .from('public_live_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'upcoming');
+
+    const { count: endedCount } = await client
+      .from('public_live_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ended');
+
+    // 格式化返回数据
+    const list = (plans || []).map((plan: PublicLivePlan) => ({
+      id: plan.id,
+      title: plan.title,
+      courseId: plan.course_id,
+      platform: plan.platform,
+      scheduledAt: plan.scheduled_at,
+      status: plan.status,
+      viewerCount: plan.viewer_count,
+      salesCount: plan.sales_count,
+      salesAmount: plan.sales_amount,
+      createdAt: plan.created_at
+    }));
+
+    return NextResponse.json({
+      code: 200,
+      message: 'success',
+      data: {
+        list,
+        stats: {
+          total: totalCount || 0,
+          today: todayCount || 0,
+          upcoming: upcomingCount || 0,
+          ended: endedCount || 0
+        },
+        pagination: {
+          page,
+          pageSize,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / pageSize)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('获取直播计划失败:', error);
+    return NextResponse.json(
+      { code: 500, message: '服务器错误', data: null },
+      { status: 500 }
+    );
+  }
 }
 
 // POST: 创建直播计划
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, courseId, courseName, platform, scheduledAt } = body;
+    const { title, courseId, platform, scheduledAt, description } = body;
 
     // 验证必填项
-    if (!title || !courseId || !platform || !scheduledAt) {
+    if (!title || !platform || !scheduledAt) {
       return NextResponse.json(
         { code: 400, message: '请填写完整信息', data: null },
         { status: 400 }
@@ -124,27 +130,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 创建计划
-    const newPlan = {
-      id: `LP${Date.now()}`,
-      title,
-      courseId,
-      courseName: courseName || '',
-      platform,
-      scheduledAt,
-      status: 'upcoming',
-      links: [],
-      createdAt: new Date().toISOString()
-    };
+    const client = getSupabaseClient();
 
-    livePlans.unshift(newPlan);
+    // 创建计划
+    const { data: newPlan, error } = await client
+      .from('public_live_plans')
+      .insert({
+        title,
+        course_id: courseId,
+        platform,
+        scheduled_at: scheduledAt,
+        description,
+        status: 'upcoming'
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`创建直播计划失败: ${error.message}`);
 
     return NextResponse.json({
       code: 200,
       message: '创建成功',
-      data: newPlan
+      data: {
+        id: newPlan.id,
+        title: newPlan.title,
+        platform: newPlan.platform,
+        scheduledAt: newPlan.scheduled_at,
+        status: newPlan.status,
+        createdAt: newPlan.created_at
+      }
     });
   } catch (error) {
+    console.error('创建直播计划失败:', error);
     return NextResponse.json(
       { code: 500, message: '服务器错误', data: null },
       { status: 500 }
@@ -154,29 +171,36 @@ export async function POST(request: NextRequest) {
 
 // DELETE: 删除直播计划
 export async function DELETE(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const id = searchParams.get('id');
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const id = searchParams.get('id');
 
-  if (!id) {
+    if (!id) {
+      return NextResponse.json(
+        { code: 400, message: '缺少计划ID', data: null },
+        { status: 400 }
+      );
+    }
+
+    const client = getSupabaseClient();
+
+    const { error } = await client
+      .from('public_live_plans')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`删除直播计划失败: ${error.message}`);
+
+    return NextResponse.json({
+      code: 200,
+      message: '删除成功',
+      data: null
+    });
+  } catch (error) {
+    console.error('删除直播计划失败:', error);
     return NextResponse.json(
-      { code: 400, message: '缺少计划ID', data: null },
-      { status: 400 }
+      { code: 500, message: '服务器错误', data: null },
+      { status: 500 }
     );
   }
-
-  const index = livePlans.findIndex(p => p.id === id);
-  if (index === -1) {
-    return NextResponse.json(
-      { code: 404, message: '计划不存在', data: null },
-      { status: 404 }
-    );
-  }
-
-  livePlans.splice(index, 1);
-
-  return NextResponse.json({
-    code: 200,
-    message: '删除成功',
-    data: null
-  });
 }

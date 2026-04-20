@@ -1,160 +1,166 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 模拟私域直播课程数据
-const liveClasses = [
-  {
-    id: 'LC001',
-    title: 'Python 入门第一课：环境搭建',
-    courseId: 'C001',
-    courseName: 'Python 从入门到精通',
-    status: 'ended',
-    scheduledAt: '2024-01-15T11:00:00Z',
-    duration: 7200,
-    students: 256,
-    maxStudents: 300,
-    replayAvailable: true,
-    views: 156,
-    createdAt: '2024-01-10T10:00:00Z'
-  },
-  {
-    id: 'LC002',
-    title: 'Python 进阶：函数与模块',
-    courseId: 'C001',
-    courseName: 'Python 从入门到精通',
-    status: 'ended',
-    scheduledAt: '2024-01-18T11:00:00Z',
-    duration: 5400,
-    students: 198,
-    maxStudents: 300,
-    replayAvailable: true,
-    views: 98,
-    createdAt: '2024-01-12T10:00:00Z'
-  },
-  {
-    id: 'LC003',
-    title: 'React 核心概念详解',
-    courseId: 'C002',
-    courseName: 'React 实战课程',
-    status: 'live',
-    scheduledAt: '2024-01-20T11:00:00Z',
-    duration: 0,
-    students: 187,
-    maxStudents: 200,
-    replayAvailable: false,
-    views: 245,
-    createdAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: 'LC004',
-    title: 'TypeScript 进阶技巧',
-    courseId: 'C003',
-    courseName: 'TypeScript 深入浅出',
-    status: 'upcoming',
-    scheduledAt: '2024-01-25T12:00:00Z',
-    duration: 5400,
-    students: 0,
-    maxStudents: 200,
-    replayAvailable: false,
-    views: 0,
-    createdAt: '2024-01-18T10:00:00Z'
-  },
-  {
-    id: 'LC005',
-    title: 'Node.js 实战：搭建 RESTful API',
-    courseId: 'C004',
-    courseName: 'Node.js 全栈开发',
-    status: 'upcoming',
-    scheduledAt: '2024-01-28T11:30:00Z',
-    duration: 7200,
-    students: 0,
-    maxStudents: 150,
-    replayAvailable: false,
-    views: 0,
-    createdAt: '2024-01-20T10:00:00Z'
-  }
-];
+interface PrivateClassroom {
+  id: string;
+  user_id: string;
+  course_id: string | null;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  teacher_name: string | null;
+  scheduled_at: string | null;
+  duration: number;
+  status: string;
+  students_count: number;
+  viewer_count: number;
+  replay_url: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
 
 // GET: 获取私域直播列表
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const status = searchParams.get('status');
-  const page = parseInt(searchParams.get('page') || '1');
-  const pageSize = parseInt(searchParams.get('pageSize') || '10');
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
 
-  // 过滤
-  let filtered = [...liveClasses];
-  if (status) {
-    filtered = filtered.filter(c => c.status === status);
-  }
+    const client = getSupabaseClient();
 
-  // 分页
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const list = filtered.slice(start, end);
+    // 构建查询
+    let query = client.from('private_classrooms').select('*', { count: 'exact' });
 
-  // 统计
-  const stats = {
-    total: liveClasses.length,
-    live: liveClasses.filter(c => c.status === 'live').length,
-    upcoming: liveClasses.filter(c => c.status === 'upcoming').length,
-    ended: liveClasses.filter(c => c.status === 'ended').length,
-    totalStudents: liveClasses.reduce((sum, c) => sum + c.students, 0)
-  };
-
-  return NextResponse.json({
-    code: 200,
-    message: 'success',
-    data: {
-      list,
-      stats,
-      pagination: {
-        page,
-        pageSize,
-        total: filtered.length,
-        totalPages: Math.ceil(filtered.length / pageSize)
-      }
+    if (status) {
+      query = query.eq('status', status);
     }
-  });
+
+    query = query.order('scheduled_at', { ascending: false });
+    query = query.range((page - 1) * pageSize, page * pageSize - 1);
+
+    const { data: classrooms, error, count } = await query;
+
+    if (error) throw new Error(`查询私域课堂失败: ${error.message}`);
+
+    // 获取统计数据
+    const { count: totalCount } = await client
+      .from('private_classrooms')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: liveCount } = await client
+      .from('private_classrooms')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'live');
+
+    const { count: upcomingCount } = await client
+      .from('private_classrooms')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'scheduled');
+
+    const { count: endedCount } = await client
+      .from('private_classrooms')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ended');
+
+    const { data: studentData } = await client
+      .from('private_classrooms')
+      .select('students_count');
+
+    const totalStudents = (studentData || []).reduce(
+      (sum, c) => sum + ((c as any)?.students_count || 0),
+      0
+    );
+
+    // 格式化返回数据
+    const list = (classrooms || []).map((c: PrivateClassroom) => ({
+      id: c.id,
+      title: c.title,
+      courseId: c.course_id,
+      status: c.status,
+      scheduledAt: c.scheduled_at,
+      duration: c.duration,
+      students: c.students_count,
+      viewerCount: c.viewer_count,
+      replayUrl: c.replay_url,
+      createdAt: c.created_at
+    }));
+
+    return NextResponse.json({
+      code: 200,
+      message: 'success',
+      data: {
+        list,
+        stats: {
+          total: totalCount || 0,
+          live: liveCount || 0,
+          upcoming: upcomingCount || 0,
+          ended: endedCount || 0,
+          totalStudents
+        },
+        pagination: {
+          page,
+          pageSize,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / pageSize)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('获取私域课堂失败:', error);
+    return NextResponse.json(
+      { code: 500, message: '服务器错误', data: null },
+      { status: 500 }
+    );
+  }
 }
 
 // POST: 创建私域直播课
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, courseId, courseName, scheduledAt, duration, maxStudents } = body;
+    const { title, courseId, scheduledAt, duration, description } = body;
 
     // 验证必填项
-    if (!title || !courseId || !scheduledAt || !duration) {
+    if (!title || !scheduledAt) {
       return NextResponse.json(
         { code: 400, message: '请填写完整信息', data: null },
         { status: 400 }
       );
     }
 
-    // 创建直播课
-    const newClass = {
-      id: `LC${Date.now()}`,
-      title,
-      courseId,
-      courseName: courseName || '',
-      status: 'upcoming',
-      scheduledAt,
-      duration,
-      students: 0,
-      maxStudents: maxStudents || 200,
-      replayAvailable: false,
-      views: 0,
-      createdAt: new Date().toISOString()
-    };
+    const client = getSupabaseClient();
 
-    liveClasses.unshift(newClass);
+    // 创建直播课
+    const { data: newClass, error } = await client
+      .from('private_classrooms')
+      .insert({
+        title,
+        course_id: courseId,
+        scheduled_at: scheduledAt,
+        duration: duration || 120,
+        description,
+        status: 'scheduled'
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`创建私域课堂失败: ${error.message}`);
 
     return NextResponse.json({
       code: 200,
       message: '创建成功',
-      data: newClass
+      data: {
+        id: newClass.id,
+        title: newClass.title,
+        status: newClass.status,
+        scheduledAt: newClass.scheduled_at,
+        duration: newClass.duration,
+        createdAt: newClass.created_at
+      }
     });
   } catch (error) {
+    console.error('创建私域课堂失败:', error);
     return NextResponse.json(
       { code: 500, message: '服务器错误', data: null },
       { status: 500 }

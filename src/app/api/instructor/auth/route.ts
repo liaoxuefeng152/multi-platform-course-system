@@ -1,75 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// 模拟认证记录
-let authRecord = {
-  id: 'A001',
-  type: 'personal',
-  name: '张老师',
-  phone: '13800138000',
-  status: 'pending',
-  submittedAt: '2024-01-15T10:00:00Z',
-  reviewedAt: null as string | null,
-  rejectReason: ''
-};
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET: 获取认证状态
-export async function GET() {
-  return NextResponse.json({
-    code: 200,
-    message: 'success',
-    data: authRecord.status === 'pending' ? {
-      status: 'pending',
-      rejectReason: '',
-      submittedAt: authRecord.submittedAt
-    } : {
-      status: authRecord.status,
-      rejectReason: authRecord.rejectReason,
-      submittedAt: authRecord.submittedAt,
-      reviewedAt: authRecord.reviewedAt
-    }
-  });
-}
-
-// POST: 提交认证
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { type, name, phone, idCard, idCardFront, idCardBack } = body;
+    const searchParams = request.nextUrl.searchParams;
+    const userId = searchParams.get('userId');
 
-    // 验证参数
-    if (!type || !name || !phone) {
+    if (!userId) {
       return NextResponse.json(
-        { code: 400, message: '请填写完整信息', data: null },
+        { code: 400, message: '缺少用户ID', data: null },
         { status: 400 }
       );
     }
 
-    // 个人认证需要身份证
-    if (type === 'personal' && !idCard) {
-      return NextResponse.json(
-        { code: 400, message: '个人认证需要填写身份证号', data: null },
-        { status: 400 }
-      );
-    }
+    const client = getSupabaseClient();
 
-    // 更新认证记录
-    authRecord = {
-      id: `A${Date.now()}`,
-      type,
-      name,
-      phone,
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-      reviewedAt: null,
-      rejectReason: ''
-    };
+    const { data: profile, error } = await client
+      .from('instructor_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw new Error(`查询认证状态失败: ${error.message}`);
+
+    if (!profile) {
+      return NextResponse.json({
+        code: 200,
+        message: 'success',
+        data: {
+          status: 'none',
+          message: '未提交认证申请'
+        }
+      });
+    }
 
     return NextResponse.json({
       code: 200,
-      message: '提交成功，审核中',
-      data: { authId: authRecord.id }
+      message: 'success',
+      data: {
+        status: profile.status,
+        realName: profile.real_name,
+        idCard: profile.id_card,
+        rejectionReason: profile.rejection_reason,
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at
+      }
     });
   } catch (error) {
+    console.error('获取认证状态失败:', error);
     return NextResponse.json(
       { code: 500, message: '服务器错误', data: null },
       { status: 500 }
@@ -77,28 +56,82 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT: 更新认证状态（模拟管理员操作）
-export async function PUT(request: NextRequest) {
+// POST: 提交认证
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { status, rejectReason } = body;
+    const { userId, realName, idCard, idCardFront, idCardBack } = body;
 
-    // 模拟审核通过
-    if (status === 'approved') {
-      authRecord.status = 'approved';
-      authRecord.reviewedAt = new Date().toISOString();
-    } else if (status === 'rejected') {
-      authRecord.status = 'rejected';
-      authRecord.reviewedAt = new Date().toISOString();
-      authRecord.rejectReason = rejectReason || '信息不符';
+    if (!userId || !realName || !idCard) {
+      return NextResponse.json(
+        { code: 400, message: '请填写完整信息', data: null },
+        { status: 400 }
+      );
     }
+
+    const client = getSupabaseClient();
+
+    // 检查是否已有认证记录
+    const { data: existing } = await client
+      .from('instructor_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing) {
+      // 更新认证信息
+      const { data: updated, error } = await client
+        .from('instructor_profiles')
+        .update({
+          real_name: realName,
+          id_card: idCard,
+          id_card_front: idCardFront,
+          id_card_back: idCardBack,
+          status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) throw new Error(`更新认证失败: ${error.message}`);
+
+      return NextResponse.json({
+        code: 200,
+        message: '提交成功，审核中',
+        data: {
+          status: updated.status,
+          realName: updated.real_name
+        }
+      });
+    }
+
+    // 创建新认证记录
+    const { data: newProfile, error } = await client
+      .from('instructor_profiles')
+      .insert({
+        user_id: userId,
+        real_name: realName,
+        id_card: idCard,
+        id_card_front: idCardFront,
+        id_card_back: idCardBack,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`提交认证失败: ${error.message}`);
 
     return NextResponse.json({
       code: 200,
-      message: '更新成功',
-      data: authRecord
+      message: '提交成功，审核中',
+      data: {
+        status: newProfile.status,
+        realName: newProfile.real_name
+      }
     });
   } catch (error) {
+    console.error('提交认证失败:', error);
     return NextResponse.json(
       { code: 500, message: '服务器错误', data: null },
       { status: 500 }
