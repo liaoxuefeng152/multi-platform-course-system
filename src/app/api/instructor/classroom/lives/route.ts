@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 模拟私域直播课程数据
-let liveClasses = [
+const liveClasses = [
   {
     id: 'LC001',
     title: 'Python 入门第一课：环境搭建',

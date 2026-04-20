@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 模拟课程数据
-let courses = [
+const courses = [
   {
     id: 'C001',
     title: 'Python 从入门到精通',

@@ -19,15 +19,15 @@ let failed = 0;
 const results: { name: string; status: 'PASS' | 'FAIL'; message?: string }[] = [];
 
 // 打印结果
-function printResult(name: string, passed: boolean, message?: string) {
-  const status = passed ? 'PASS' : 'FAIL';
-  const color = passed ? colors.green : colors.red;
+function printResult(name: string, isPassed: boolean, message?: string) {
+  const status = isPassed ? 'PASS' : 'FAIL';
+  const color = isPassed ? colors.green : colors.red;
   console.log(`${color}[${status}]${colors.reset} ${name}`);
   if (message) {
     console.log(`       └─ ${message}`);
   }
-  results.push({ name, status: passed ? 'PASS' : 'FAIL', message });
-  passed ? globals.passed++ : globals.failed++;
+  results.push({ name, status: isPassed ? 'PASS' : 'FAIL', message });
+  isPassed ? passed++ : failed++;
 }
 
 // 全局计数

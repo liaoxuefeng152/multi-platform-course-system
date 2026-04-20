@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 模拟直播计划数据
-let livePlans = [
+const livePlans = [
   {
     id: 'LP001',
     title: 'Python 入门第一课',

@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// 账号类型定义
+interface PlatformAccount {
+  id: string;
+  name: string;
+  avatar: string;
+  followers: number;
+  boundAt: string;
+  status: string;
+}
+
 // 模拟已绑定账号数据
-let bindings = {
+const bindings: Record<string, PlatformAccount[]> = {
   douyin: [
     {
       id: 'DY001',
@@ -73,7 +83,7 @@ export async function POST(request: NextRequest) {
         
         // 添加新账号
         const platform = qrcodeStore[qrcodeId].platform;
-        const newAccount = {
+        const newAccount: PlatformAccount = {
           id: `${platform.toUpperCase().slice(0, 2)}${Date.now()}`,
           name: `新绑定的账号`,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`,
@@ -82,7 +92,10 @@ export async function POST(request: NextRequest) {
           status: 'active'
         };
         
-        bindings[platform as keyof typeof bindings].push(newAccount);
+        const platformAccounts = bindings[platform];
+        if (platformAccounts) {
+          platformAccounts.push(newAccount);
+        }
         
         return NextResponse.json({
           code: 200,
