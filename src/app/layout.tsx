@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { Inspector } from 'react-dev-inspector';
+import { APP_CONFIG, PROJECT_ENV } from '@/lib/env';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: '新应用 | 扣子编程',
-    template: '%s | 扣子编程',
+    default: `${APP_CONFIG.APP_NAME} | 扣子编程`,
+    template: `%s | ${APP_CONFIG.APP_NAME}`,
   },
   description:
-    '扣子编程是一款一站式云端 Vibe Coding 开发平台。通过对话轻松构建智能体、工作流和网站，实现从创意到上线的无缝衔接。',
+    `${APP_CONFIG.APP_NAME} - 多平台卖课管理系统，支持抖音、视频号直播卖课，提供课程管理、学员管理、数据分析等功能。`,
   keywords: [
     '扣子编程',
     'Coze Code',

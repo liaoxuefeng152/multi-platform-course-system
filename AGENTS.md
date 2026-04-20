@@ -22,8 +22,16 @@
 │   ├── components/ui/      # Shadcn UI 组件库
 │   ├── hooks/              # 自定义 Hooks
 │   ├── lib/                # 工具库
+│   │   ├── env.ts          # 环境变量配置
+│   │   ├── storage.ts      # 对象存储封装
 │   │   └── utils.ts        # 通用工具函数 (cn)
+│   ├── storage/
+│   │   └── database/       # 数据库相关
+│   │       ├── supabase-client.ts  # Supabase 客户端
+│   │       └── shared/
+│   │           └── schema.ts        # 数据表定义
 │   └── server.ts           # 自定义服务端入口
+├── .env.example            # 环境变量配置示例
 ├── next.config.ts          # Next.js 配置
 ├── package.json            # 项目依赖管理
 └── tsconfig.json           # TypeScript 配置
@@ -52,6 +60,22 @@
 - Next.js 项目**必须默认**采用 shadcn/ui 组件、风格和规范，**除非用户指定用其他的组件和规范。**
 
 ## 集成服务
+
+### 环境变量配置
+- **配置文件**: `src/lib/env.ts` - 统一的环境变量访问接口
+- **配置示例**: `.env.example` - 环境变量配置示例
+- **使用方式**:
+  ```typescript
+  import { PROJECT_ENV, SUPABASE_CONFIG, STORAGE_CONFIG, APP_CONFIG } from '@/lib/env';
+  
+  // 获取项目信息
+  const domain = PROJECT_ENV.DOMAIN;
+  const isProd = PROJECT_ENV.IS_PROD;
+  
+  // 获取配置
+  const supabaseUrl = SUPABASE_CONFIG.URL;
+  const storageEndpoint = STORAGE_CONFIG.ENDPOINT_URL;
+  ```
 
 ### 数据库 (Supabase PostgreSQL)
 - **表结构**: `src/storage/database/shared/schema.ts`

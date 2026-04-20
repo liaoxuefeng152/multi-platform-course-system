@@ -1,12 +1,13 @@
 import { S3Storage } from 'coze-coding-dev-sdk';
+import { STORAGE_CONFIG } from './env';
 
 // 初始化对象存储客户端
 export const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+  endpointUrl: STORAGE_CONFIG.ENDPOINT_URL,
   accessKey: '',
   secretKey: '',
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: 'cn-beijing',
+  bucketName: STORAGE_CONFIG.BUCKET_NAME,
+  region: STORAGE_CONFIG.REGION,
 });
 
 /**
