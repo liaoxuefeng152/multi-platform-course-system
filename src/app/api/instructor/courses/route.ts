@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getFileUrl } from '@/lib/storage';
 
 interface Course {
   id: string;
@@ -7,6 +8,7 @@ interface Course {
   title: string;
   description: string | null;
   cover_image: string | null;
+  cover_key: string | null;
   price: number;
   original_price: number | null;
   category: string | null;
@@ -48,19 +50,34 @@ export async function GET(request: NextRequest) {
     if (error) throw new Error(`查询课程失败: ${error.message}`);
 
     // 格式化返回数据
-    const list = (courses || []).map((course: Course) => ({
-      id: course.id,
-      title: course.title,
-      cover: course.cover_image,
-      type: 'video',
-      category: course.category,
-      price: course.price,
-      students: course.students_count,
-      status: course.status,
-      description: course.description,
-      createdAt: course.created_at,
-      updatedAt: course.updated_at
-    }));
+    const list = await Promise.all(
+      (courses || []).map(async (course: Course) => {
+        // 如果有 cover_key，生成访问 URL
+        let cover = course.cover_image;
+        if (course.cover_key && !cover) {
+          try {
+            cover = await getFileUrl(course.cover_key, 86400);
+          } catch {
+            // 生成 URL 失败，使用默认封面
+          }
+        }
+        
+        return {
+          id: course.id,
+          title: course.title,
+          cover,
+          coverKey: course.cover_key,
+          type: 'video',
+          category: course.category,
+          price: course.price,
+          students: course.students_count,
+          status: course.status,
+          description: course.description,
+          createdAt: course.created_at,
+          updatedAt: course.updated_at
+        };
+      })
+    );
 
     return NextResponse.json({
       code: 200,
@@ -88,7 +105,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, category, cover, price, description } = body;
+    const { title, category, cover, coverKey, price, description } = body;
 
     // 验证必填项
     if (!title || !category || !price) {
@@ -107,6 +124,7 @@ export async function POST(request: NextRequest) {
         title,
         category,
         cover_image: cover,
+        cover_key: coverKey,
         price,
         description,
         status: 'draft'

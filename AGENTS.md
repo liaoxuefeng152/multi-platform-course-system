@@ -51,4 +51,27 @@
 - 模板默认预装核心组件库 `shadcn/ui`，位于`src/components/ui/`目录下
 - Next.js 项目**必须默认**采用 shadcn/ui 组件、风格和规范，**除非用户指定用其他的组件和规范。**
 
+## 集成服务
+
+### 数据库 (Supabase PostgreSQL)
+- **表结构**: `src/storage/database/shared/schema.ts`
+- **客户端**: `src/storage/database/supabase-client.ts`
+- **使用方式**:
+  ```typescript
+  import { getSupabaseClient } from '@/storage/database/supabase-client';
+  const client = getSupabaseClient(); // 服务端操作
+  ```
+
+### 对象存储 (S3 Compatible)
+- **客户端**: `src/lib/storage.ts`
+- **上传 API**: `/api/upload` - 通用文件上传
+- **头像 API**: `/api/upload/avatar` - 头像上传
+- **封面 API**: `/api/upload/cover` - 课程封面上传
+- **使用方式**:
+  ```typescript
+  import { uploadFile, getFileUrl, deleteFile } from '@/lib/storage';
+  const key = await uploadFile(buffer, fileName, contentType, prefix);
+  const url = await getFileUrl(key, 86400);
+  ```
+
 

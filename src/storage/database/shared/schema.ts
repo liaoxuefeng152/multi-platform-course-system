@@ -48,6 +48,7 @@ export const courses = pgTable(
     title: varchar("title", { length: 200 }).notNull(),
     description: text("description"),
     cover_image: text("cover_image"),
+    cover_key: varchar("cover_key", { length: 500 }), // 对象存储 key
     price: integer("price").notNull().default(0), // 价格（分）
     original_price: integer("original_price"), // 原价（分）
     category: varchar("category", { length: 50 }),
